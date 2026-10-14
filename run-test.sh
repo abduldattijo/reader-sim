@@ -239,8 +239,8 @@ while true; do
   [ "$PENDING" -eq 0 ] && break
   ELAPSED=$(( $(date +%s) - WAIT_START ))
   if [ "$ELAPSED" -ge "$MAX_READY_WAIT" ]; then
-    for i in "${!IPS[@]}"; do [ "${READY_FLAG[$i]}" -eq 0 ] && echo "${REGIONS[$i]}: NOT ready after ${MAX_READY_WAIT}s (last state: ${LAST_STATE[$i]:-unknown})"; done
-    exit 1
+    for i in "${!IPS[@]}"; do [ "${READY_FLAG[$i]}" -eq 0 ] && echo "${REGIONS[$i]}: NOT ready after ${MAX_READY_WAIT}s — skipping (last state: ${LAST_STATE[$i]:-unknown})"; done
+    break
   fi
   if [ $(( ELAPSED - LAST_PRINT )) -ge 30 ]; then
     for i in "${!IPS[@]}"; do
@@ -254,6 +254,7 @@ done
 # ---- upload the current reader.js (so the Vultr startup script copy can be stale) ----
 echo "Uploading current reader.js to each server..."
 for i in "${!IPS[@]}"; do
+  [ "${READY_FLAG[$i]}" -eq 0 ] && continue
   scp "${SSHO[@]}" "$HERE/reader.js" root@"${IPS[$i]}":/root/reader/reader.js >/dev/null 2>&1 \
     || { echo "${REGIONS[$i]}: could not upload reader.js"; exit 1; }
 done
@@ -261,6 +262,7 @@ done
 # ---- install extra packages not in the startup script ----
 echo "Installing extra packages on each server..."
 for i in "${!IPS[@]}"; do
+  [ "${READY_FLAG[$i]}" -eq 0 ] && continue
   ssh "${SSHO[@]}" root@"${IPS[$i]}" \
     "cd /root/reader && npm install playwright-extra puppeteer-extra-plugin-stealth --save-exact 2>&1 | tail -1" \
     || { echo "${REGIONS[$i]}: npm install failed"; exit 1; }
@@ -272,6 +274,7 @@ CLICK_PROB="${CLICK_LINK_PROB:-0.25}"
 OUT="$(mktemp -d)"
 echo; echo "Running $TOTAL readers (link-click chance: $CLICK_PROB)..."; date -u +"start %H:%M:%S UTC"
 for i in "${!IPS[@]}"; do
+  [ "${READY_FLAG[$i]}" -eq 0 ] && continue
   PENV=""
   if [ "$SCRAPFLY_ON" -eq 1 ]; then
     PENV="$(printf 'SCRAPFLY_API_KEY=%q SCRAPFLY_COUNTRY=%q' "$SF_KEY" "${SF_COUNTRIES[$i]}")"
