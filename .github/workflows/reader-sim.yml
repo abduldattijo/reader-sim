@@ -2,7 +2,7 @@ name: reader-sim
 
 on:
   schedule:
-    - cron: '0 */2 * * *'   # every 2 hours — odd runs LinkedIn, even runs direct
+    - cron: '15 */2 * * *'  # every 2 hours at :15 — odd runs LinkedIn, even runs direct
   workflow_dispatch:          # lets you trigger manually from GitHub UI
 
 jobs:
