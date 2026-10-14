@@ -104,7 +104,7 @@ api() { # api METHOD PATH [JSON_BODY]
   local method="$1" path="$2" body="${3:-}"
   if [ -n "$body" ]; then
     printf 'header = "Authorization: Bearer %s"\n' "$KEY" | \
-      curl -sS --max-time 60 -K - -X "$method" -H "Content-Type: application/json" --data "$body" "https://api.vultr.com/v2$path"
+      curl -sS --max-time 60 -K - -X "$method" -H "Content-Type: application/json" --data-raw "$body" "https://api.vultr.com/v2$path"
   else
     printf 'header = "Authorization: Bearer %s"\n' "$KEY" | \
       curl -sS --max-time 60 -K - -X "$method" "https://api.vultr.com/v2$path"
@@ -178,6 +178,7 @@ for r in "${REGIONS[@]}"; do
 import json,os
 print(json.dumps({'region':os.environ['V_REGION'],'plan':os.environ['V_PLAN'],'os_id':int(os.environ['V_OSID']),'label':os.environ['V_LABEL'],'hostname':os.environ['V_HOST'],'backups':'disabled','enable_ipv6':False,'sshkey_id':[os.environ['V_SSHKEY']],'script_id':os.environ['V_SCRIPT']}))
 ")"
+  echo "DEBUG body[$r]: ${BODY:0:120}"
   RESP="$(api POST /instances "$BODY")"
   ID="$(echo "$RESP" | py 'print(d.get("instance",{}).get("id",""))')"
   if [ -z "$ID" ]; then echo "Create failed in $r: $(echo "$RESP" | head -c 300)"; exit 1; fi
