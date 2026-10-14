@@ -1,0 +1,28 @@
+name: reader-sim
+
+on:
+  schedule:
+    - cron: '0 */2 * * *'   # every 2 hours — odd runs LinkedIn, even runs direct
+  workflow_dispatch:          # lets you trigger manually from GitHub UI
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VULTR_SSH_PRIVATE_KEY }}" > ~/.ssh/vultr_reader_ed25519
+          chmod 600 ~/.ssh/vultr_reader_ed25519
+
+      - name: Run scheduled readers
+        env:
+          VULTR_API_KEY: ${{ secrets.VULTR_API_KEY }}
+          SCRAPFLY_API_KEY: ${{ secrets.SCRAPFLY_API_KEY }}
+        run: |
+          chmod +x run-scheduled.sh run-test.sh
+          ./run-scheduled.sh
