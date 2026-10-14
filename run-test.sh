@@ -178,8 +178,13 @@ for r in "${REGIONS[@]}"; do
 import json,os
 print(json.dumps({'region':os.environ['V_REGION'],'plan':os.environ['V_PLAN'],'os_id':int(os.environ['V_OSID']),'label':os.environ['V_LABEL'],'hostname':os.environ['V_HOST'],'backups':'disabled','enable_ipv6':False,'sshkey_id':[os.environ['V_SSHKEY']],'script_id':os.environ['V_SCRIPT']}))
 ")"
-  echo "DEBUG body[$r]: ${BODY:0:120}"
-  RESP="$(api POST /instances "$BODY")"
+  echo "DEBUG body[$r] (len=${#BODY}): $BODY"
+  TMPJSON="$(mktemp)"
+  echo "$BODY" > "$TMPJSON"
+  RESP="$(printf 'header = "Authorization: Bearer %s"\n' "$KEY" | \
+    curl -sS --max-time 60 -K - -X POST -H "Content-Type: application/json" \
+    --data "@$TMPJSON" "https://api.vultr.com/v2/instances")"
+  rm -f "$TMPJSON"
   ID="$(echo "$RESP" | py 'print(d.get("instance",{}).get("id",""))')"
   if [ -z "$ID" ]; then echo "Create failed in $r: $(echo "$RESP" | head -c 300)"; exit 1; fi
   CREATED+=("$ID"); IDS+=("$ID")
