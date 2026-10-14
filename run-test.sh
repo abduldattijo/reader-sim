@@ -174,19 +174,30 @@ if [ "$DRY" -eq 1 ]; then echo; echo "Dry run: nothing created."; exit 0; fi
 RUNID="$(date +%H%M%S)"
 IDS=();
 for r in "${REGIONS[@]}"; do
-  BODY="$(V_REGION="$r" V_PLAN="$PLAN" V_OSID="$OS_ID" V_LABEL="$LABEL_PREFIX-$r-$RUNID" V_HOST="$LABEL_PREFIX-$r" V_SSHKEY="$SSHKEY_ID" V_SCRIPT="$SCRIPT_ID" python3 -c "
-import json,os
-print(json.dumps({'region':os.environ['V_REGION'],'plan':os.environ['V_PLAN'],'os_id':int(os.environ['V_OSID']),'label':os.environ['V_LABEL'],'hostname':os.environ['V_HOST'],'backups':'disabled','enable_ipv6':False,'sshkey_id':[os.environ['V_SSHKEY']],'script_id':os.environ['V_SCRIPT']}))
+  RESP="$(V_REGION="$r" V_PLAN="$PLAN" V_OSID="$OS_ID" V_LABEL="$LABEL_PREFIX-$r-$RUNID" V_HOST="$LABEL_PREFIX-$r" V_SSHKEY="$SSHKEY_ID" V_SCRIPT="$SCRIPT_ID" VULTR_KEY="$KEY" python3 -c "
+import json, os, urllib.request, urllib.error
+data = {
+  'region': os.environ['V_REGION'],
+  'plan': os.environ['V_PLAN'],
+  'os_id': int(os.environ['V_OSID']),
+  'label': os.environ['V_LABEL'],
+  'hostname': os.environ['V_HOST'],
+  'backups': 'disabled',
+  'enable_ipv6': False,
+  'sshkey_id': [os.environ['V_SSHKEY']],
+  'script_id': os.environ['V_SCRIPT'],
+}
+body = json.dumps(data).encode('utf-8')
+req = urllib.request.Request(
+  'https://api.vultr.com/v2/instances',
+  data=body,
+  headers={'Authorization': 'Bearer ' + os.environ['VULTR_KEY'].strip(), 'Content-Type': 'application/json'},
+  method='POST'
+)
+try:
+  with urllib.request.urlopen(req) as r: print(r.read().decode())
+except urllib.error.HTTPError as e: print(e.read().decode())
 ")"
-  TMPJSON="$(mktemp)"
-  printf '%s' "$BODY" > "$TMPJSON"
-  RESP="$(curl -sS --max-time 60 \
-    -X POST \
-    -H "Authorization: Bearer $KEY" \
-    -H "Content-Type: application/json" \
-    --data "@$TMPJSON" \
-    "https://api.vultr.com/v2/instances")"
-  rm -f "$TMPJSON"
   ID="$(echo "$RESP" | py 'print(d.get("instance",{}).get("id",""))')"
   if [ -z "$ID" ]; then echo "Create failed in $r: $(echo "$RESP" | head -c 300)"; exit 1; fi
   CREATED+=("$ID"); IDS+=("$ID")
