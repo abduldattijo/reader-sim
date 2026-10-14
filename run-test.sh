@@ -174,7 +174,10 @@ if [ "$DRY" -eq 1 ]; then echo; echo "Dry run: nothing created."; exit 0; fi
 RUNID="$(date +%H%M%S)"
 IDS=();
 for r in "${REGIONS[@]}"; do
-  BODY="$(python3 -c "import json;print(json.dumps({'region':'$r','plan':'$PLAN','os_id':int('$OS_ID'),'label':'$LABEL_PREFIX-$r-$RUNID','hostname':'$LABEL_PREFIX-$r','backups':'disabled','enable_ipv6':False,'sshkey_id':['$SSHKEY_ID'],'script_id':'$SCRIPT_ID'}))")"
+  BODY="$(V_REGION="$r" V_PLAN="$PLAN" V_OSID="$OS_ID" V_LABEL="$LABEL_PREFIX-$r-$RUNID" V_HOST="$LABEL_PREFIX-$r" V_SSHKEY="$SSHKEY_ID" V_SCRIPT="$SCRIPT_ID" python3 -c "
+import json,os
+print(json.dumps({'region':os.environ['V_REGION'],'plan':os.environ['V_PLAN'],'os_id':int(os.environ['V_OSID']),'label':os.environ['V_LABEL'],'hostname':os.environ['V_HOST'],'backups':'disabled','enable_ipv6':False,'sshkey_id':[os.environ['V_SSHKEY']],'script_id':os.environ['V_SCRIPT']}))
+")"
   RESP="$(api POST /instances "$BODY")"
   ID="$(echo "$RESP" | py 'print(d.get("instance",{}).get("id",""))')"
   if [ -z "$ID" ]; then echo "Create failed in $r: $(echo "$RESP" | head -c 300)"; exit 1; fi
