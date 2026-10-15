@@ -11,6 +11,9 @@
 //                             (default 0.25; a click adds a 2nd pageview)
 //   TEXT_SELECT_PROB=0.15     chance per scroll step of selecting a word or line of text
 //                             (default 0.15)
+//   GOOGLE_MODE=1             navigate to article with google.com as Referer
+//   MOBILE_PCT=0.33           fraction (0..1) of readers that use a mobile viewport (default 0)
+//   BOUNCE_PCT=0.20           fraction (0..1) of readers that leave early after 15-30s (default 0.20)
 const { chromium } = require('playwright-extra');
 // Stealth is only needed for local Chromium — Scrapfly handles fingerprinting server-side.
 if (!process.env.SCRAPFLY_API_KEY) {
@@ -101,12 +104,12 @@ async function selectText(page, pos) {
 }
 
 // Scrapfly Cloud Browser: one separate remote session per reader.
-function connectScrapfly() {
+function connectScrapfly(mobile) {
   const params = new URLSearchParams({
     api_key: process.env.SCRAPFLY_API_KEY,
     proxy_pool: process.env.SCRAPFLY_PROXY_POOL || 'residential',
     country: process.env.SCRAPFLY_COUNTRY || 'us',
-    os: 'windows',
+    os: mobile ? 'android' : 'windows',
     target_url: url,
     timeout: String(Math.ceil(stay / 1000) + 120),
   });
@@ -140,6 +143,11 @@ function dataImpulseProxy() {
 
 async function readerRun(browser, i) {
   const remote = !!process.env.SCRAPFLY_API_KEY;
+  const mobilePct = parseFloat(process.env.MOBILE_PCT ?? '0');
+  const mobile = Math.random() < mobilePct;
+  const bouncePct = parseFloat(process.env.BOUNCE_PCT ?? '0.20');
+  const willBounce = Math.random() < bouncePct;
+  const bounceAfterMs = willBounce ? rand(15000, 30000) : Infinity;
 
   // Scrapfly rate-limits concurrent new sessions; stagger by index (8s apart).
   // Local browsers just need a small random jitter.
@@ -151,20 +159,27 @@ async function readerRun(browser, i) {
   const clickAt = start + stay * rand(0.4, 0.65);
   let clicked = null, scrollUps = 0, steps = 0, textSelections = 0, status = 'ok';
   let httpStatus = null, title = null, words = null, reached = false, notReached = null;
+  let bounced = false, scrolledToComments = false;
+  let readTime = stay;
   let ctx = null, page = null;
   const tracked = [];
 
   try {
-    if (remote) browser = await connectScrapfly();
+    if (remote) browser = await connectScrapfly(mobile);
     ctx = remote
       ? (browser.contexts()[0] || await browser.newContext())
-      : await browser.newContext({ viewport: { width: 1366, height: 768 }, ...dataImpulseProxy() });
+      : await browser.newContext({
+          viewport: mobile ? { width: 390, height: 844 } : { width: 1366, height: 768 },
+          ...dataImpulseProxy()
+        });
     page = remote ? (ctx.pages()[0] || await ctx.newPage()) : await ctx.newPage();
+    if (remote && mobile) await page.setViewportSize({ width: 390, height: 844 });
     page.on('request', (r) => {
       if (r.url().includes('/__l5e/')) tracked.push(`${r.method()} ${new URL(r.url()).pathname}`);
     });
 
     const social = process.env.SOCIAL_MODE === '1';
+    const googleMode = process.env.GOOGLE_MODE === '1';
     const timeout = process.env.SCRAPFLY_API_KEY ? 60000 : 30000;
 
     if (social) {
@@ -239,6 +254,15 @@ async function readerRun(browser, i) {
       const resp2 = await page.goto(linkInfo.href, { waitUntil: 'load', timeout, referer });
       httpStatus = resp2 ? resp2.status() : null;
       await sleep(rand(1000, 2000));
+    } else if (googleMode) {
+      // Arrive as if the reader clicked a Google search result.
+      const slug = url.split('/').filter(Boolean).pop() || 'article';
+      const query = encodeURIComponent(slug.replace(/-/g, ' '));
+      const resp = await page.goto(url, {
+        waitUntil: 'load', timeout,
+        referer: `https://www.google.com/search?q=${query}`,
+      });
+      httpStatus = resp ? resp.status() : null;
     } else {
       const resp = await page.goto(url, { waitUntil: 'load', timeout });
       httpStatus = resp ? resp.status() : null;
@@ -261,11 +285,30 @@ async function readerRun(browser, i) {
     else if (words !== null && words < 30) notReached = `almost empty page (${words} words)`;
     reached = !notReached;
 
+    // Adjust read time based on article length (skim rate ~500 WPM = 120ms/word).
+    // Clamped between 60s and the original stay time.
+    if (reached && words && words > 100) {
+      readTime = Math.max(60000, Math.min(stay, words * 120));
+    }
+
     // A person who lands on a block page leaves; do the same instead of "reading" it.
-    while (reached && Date.now() - start < stay) {
+    while (reached && Date.now() - start < readTime) {
       const info = await scrollInfo(page);
       const maxY = Math.max(1, info.h - info.vh);
       const progress = Math.min(1, info.y / maxY);
+
+      // Early bounce: reader leaves after 15-30s without reading the whole article.
+      if (Date.now() - start >= bounceAfterMs) { bounced = true; break; }
+
+      // When near the bottom, rush to the comments section then stop.
+      if (!scrolledToComments && progress >= 0.80) {
+        const info2 = await scrollInfo(page);
+        const toBottom = info2.h - info2.y - info2.vh;
+        if (toBottom > 100) await smoothScroll(page, toBottom * 0.95);
+        scrolledToComments = true;
+        await sleep(rand(3000, 7000));
+        break;
+      }
 
       if (willClick && !clicked && Date.now() >= clickAt) {
         const link = await pickInternalLink(page);
@@ -317,6 +360,7 @@ async function readerRun(browser, i) {
   return {
     label, reader: i + 1, startedAt, seconds, status, webdriver,
     reached, notReached, httpStatus, title, words,
+    mobile, bounced, scrolledToComments,
     steps, scrollUps, textSelections, clicked, finalPath,
     trackedRequests: tracked.length, tracked: [...new Set(tracked)],
   };

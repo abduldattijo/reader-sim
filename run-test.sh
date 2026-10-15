@@ -161,7 +161,10 @@ else
 fi
 if [ "$SOCIAL_MODE" -eq 1 ]; then
   echo "Mode: social click-through — reader will navigate to the post, click the article link, then read"
+elif [ "${GOOGLE_MODE:-0}" = "1" ]; then
+  echo "Mode: Google referral — reader arrives with google.com as the Referer"
 fi
+[ "${MOBILE_PCT:-0}" != "0" ] && echo "Mobile: ~$(python3 -c "print(round(${MOBILE_PCT:-0}*100))")% of readers use a mobile viewport"
 echo "Cost estimate: about \$0.02 for a 15-minute run"
 if [ "$SCRAPFLY_ON" -eq 1 ] && [ "$TOTAL" -gt 5 ]; then
   echo "Warning: Scrapfly plan allows 5 concurrent sessions; $TOTAL readers requested."
@@ -283,6 +286,9 @@ for i in "${!IPS[@]}"; do
   fi
   SENV="$PENV NO_AUTOMATION_FLAG=1 CLICK_LINK_PROB=$CLICK_PROB"
   [ "$SOCIAL_MODE" -eq 1 ] && SENV="$SENV SOCIAL_MODE=1"
+  [ "${GOOGLE_MODE:-0}" = "1" ] && SENV="$SENV GOOGLE_MODE=1"
+  [ -n "${MOBILE_PCT:-}" ]   && SENV="$SENV MOBILE_PCT=$MOBILE_PCT"
+  [ -n "${BOUNCE_PCT:-}" ]   && SENV="$SENV BOUNCE_PCT=$BOUNCE_PCT"
   ssh "${SSHO[@]}" root@"${IPS[$i]}" "cd /root/reader && $SENV node reader.js '$URL' ${REGIONS[$i]} $N $SECS" > "$OUT/${REGIONS[$i]}.out" 2>&1 &
 done
 wait
@@ -304,12 +310,16 @@ for r in sys.argv[2:]:
             rows.append(json.loads(l))
         elif l.strip():
             other.append(l.strip())
-    good = [x for x in rows if x["status"] == "ok"]
+    good = [x for x in rows if x["status"] == "ok" and not x.get("bounced")]
     ok += len(good)
+    bounced_readers = sum(1 for x in rows if x.get("bounced"))
+    mobile_readers = sum(1 for x in rows if x.get("mobile"))
     clicks = [x["clicked"] for x in rows if x.get("clicked") and x["clicked"] not in ("click-failed", "no-link-found")]
     ups = sum(x.get("scrollUps", 0) for x in rows)
     sels = sum(x.get("textSelections", 0) for x in rows)
     extra = f", {len(clicks)} clicked a link" if any("clicked" in x for x in rows) else ""
+    if bounced_readers: extra += f", {bounced_readers} bounced early"
+    if mobile_readers: extra += f", {mobile_readers} mobile"
     reached = [x for x in rows if x.get("reached", True)]
     reached_total += len(reached)
     blocked_total += len(rows) - len(reached)
