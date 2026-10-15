@@ -31,7 +31,7 @@ if echo "$URL" | grep -qE '(linkedin\.com|lnkd\.in|twitter\.com|x\.com)'; then
   SOCIAL_MODE=1
 fi
 
-REGIONS=(fra ewr sgp)             # Frankfurt, New Jersey, Singapore
+REGIONS=(fra ewr sgp lax ams)     # Frankfurt, New Jersey, Singapore, Los Angeles, Amsterdam
 PLAN="vc2-1c-2gb"                 # 1 vCPU, 2 GB RAM
 OS_NAME="Ubuntu 24.04 LTS x64"
 SSH_KEY_NAME="reader-sim"
@@ -51,7 +51,7 @@ fi
 [ -n "$KEY" ] || { echo "No Vultr API key found (set VULTR_API_KEY or add 'vultr api key: ...' to $SECRETS)"; exit 1; }
 
 # ---- optional DataImpulse proxy (credentials never printed) ----------------------
-cc_for() { case "$1" in fra) echo de;; ewr) echo us;; sgp) echo sg;; *) echo us;; esac; }
+cc_for() { case "$1" in fra) echo de;; ewr) echo us;; sgp) echo sg;; lax) echo us;; ams) echo nl;; *) echo us;; esac; }
 PROXY_ON=0
 PROXY_PROVIDER="${PROXY_PROVIDER:-dataimpulse}"   # dataimpulse | decodo
 if [ "${USE_PROXY:-0}" = "1" ]; then
@@ -289,6 +289,8 @@ for i in "${!IPS[@]}"; do
   [ "${GOOGLE_MODE:-0}" = "1" ] && SENV="$SENV GOOGLE_MODE=1"
   [ -n "${MOBILE_PCT:-}" ]   && SENV="$SENV MOBILE_PCT=$MOBILE_PCT"
   [ -n "${BOUNCE_PCT:-}" ]   && SENV="$SENV BOUNCE_PCT=$BOUNCE_PCT"
+  [ -n "${SECOND_URL:-}" ]   && SENV="$SENV $(printf 'SECOND_URL=%q' "${SECOND_URL}")"
+  [ -n "${SECOND_READ_PROB:-}" ] && SENV="$SENV SECOND_READ_PROB=$SECOND_READ_PROB"
   ssh "${SSHO[@]}" root@"${IPS[$i]}" "cd /root/reader && $SENV node reader.js '$URL' ${REGIONS[$i]} $N $SECS" > "$OUT/${REGIONS[$i]}.out" 2>&1 &
 done
 wait
@@ -318,8 +320,10 @@ for r in sys.argv[2:]:
     ups = sum(x.get("scrollUps", 0) for x in rows)
     sels = sum(x.get("textSelections", 0) for x in rows)
     extra = f", {len(clicks)} clicked a link" if any("clicked" in x for x in rows) else ""
+    second_visits = sum(1 for x in rows if x.get("secondVisit"))
     if bounced_readers: extra += f", {bounced_readers} bounced early"
     if mobile_readers: extra += f", {mobile_readers} mobile"
+    if second_visits: extra += f", {second_visits} visited 2nd article"
     reached = [x for x in rows if x.get("reached", True)]
     reached_total += len(reached)
     blocked_total += len(rows) - len(reached)
