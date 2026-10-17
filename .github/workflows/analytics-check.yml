@@ -1,0 +1,42 @@
+name: analytics-check
+
+on:
+  schedule:
+    - cron: '0 7 * * *'   # 8am WAT (7am UTC) every day
+  workflow_dispatch:        # manual trigger any time
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write       # needed to commit history snapshots back to repo
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Run analytics check
+        env:
+          TDS_USERNAME: ${{ secrets.TDS_USERNAME }}
+          TDS_PASSWORD: ${{ secrets.TDS_PASSWORD }}
+        run: node analytics-check.js
+
+      - name: Commit history snapshot
+        run: |
+          git config user.email "actions@github.com"
+          git config user.name "GitHub Actions"
+          git add analytics-history/
+          git diff --staged --quiet || git commit -m "analytics: $(date -u +%Y-%m-%d) snapshot
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
+          git push
