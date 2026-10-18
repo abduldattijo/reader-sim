@@ -1,0 +1,101 @@
+{
+  "date": "2026-10-18",
+  "articles": [
+    {
+      "title": "I Tested Four Ways to Give an AI Assistant a Memory. The Obvious One Was the Worst Value.",
+      "published": "Oct 15, 2026",
+      "pageviews": 247,
+      "engagedViews": 115,
+      "engagedViews30d": 115,
+      "payout": "--"
+    },
+    {
+      "title": "I Built a Trap for AI Image Judges. They Walked Into a Different One.",
+      "published": "Oct 12, 2026",
+      "pageviews": 269,
+      "engagedViews": 128,
+      "engagedViews30d": 128,
+      "payout": "--"
+    },
+    {
+      "title": "Can an Apartment Search Agent Call the Model Fewer Times and Still Find Good Matches?",
+      "published": "Oct 1, 2026",
+      "pageviews": 460,
+      "engagedViews": 228,
+      "engagedViews30d": 228,
+      "payout": "--"
+    },
+    {
+      "title": "AI Slop Is Already in Your Training Dataset. I Tested Three Ways to Spot It.",
+      "published": "Sep 26, 2026",
+      "pageviews": 1379,
+      "engagedViews": 547,
+      "engagedViews30d": 547,
+      "payout": "$100.00"
+    },
+    {
+      "title": "One Capital Letter Was Silently Breaking My AI Support Bot",
+      "published": "Sep 12, 2026",
+      "pageviews": 475,
+      "engagedViews": 196,
+      "engagedViews30d": 194,
+      "payout": "--"
+    },
+    {
+      "title": "My Model Was Cheating on Its Own Test",
+      "published": "Aug 14, 2026",
+      "pageviews": 924,
+      "engagedViews": 365,
+      "engagedViews30d": 359,
+      "payout": "--"
+    },
+    {
+      "title": "How to Place Vertiport Locations in Any City Using Geospatial Machine Learning",
+      "published": "Aug 12, 2026",
+      "pageviews": 524,
+      "engagedViews": 239,
+      "engagedViews30d": 217,
+      "payout": "--"
+    },
+    {
+      "title": "I Built a Tool-Calling Agent in Python. Here’s How I Debugged It",
+      "published": "Aug 6, 2026",
+      "pageviews": 3602,
+      "engagedViews": 1049,
+      "engagedViews30d": 1011,
+      "payout": "$100.00"
+    },
+    {
+      "title": "How to Debug AI Coding Agents When They Change the Wrong Thing",
+      "published": "Jul 31, 2026",
+      "pageviews": 876,
+      "engagedViews": 300,
+      "engagedViews30d": 285,
+      "payout": "--"
+    },
+    {
+      "title": "How I Reproduced BM25, Dense Retrieval, and SPLADE on a 16GB MacBook",
+      "published": "Jul 27, 2026",
+      "pageviews": 933,
+      "engagedViews": 328,
+      "engagedViews30d": 290,
+      "payout": "--"
+    },
+    {
+      "title": "I Fine-Tuned OpenVLA-7B with LoRA on Google Colab: What Worked and What 100 Steps Proved",
+      "published": "Jul 21, 2026",
+      "pageviews": 655,
+      "engagedViews": 255,
+      "engagedViews30d": 215,
+      "payout": "--"
+    },
+    {
+      "title": "My Vibe-Coded App Worked Until I Tested 1,000 Users",
+      "published": "--",
+      "pageviews": 2,
+      "engagedViews": 2,
+      "engagedViews30d": 0,
+      "payout": "--"
+    }
+  ]
+}
