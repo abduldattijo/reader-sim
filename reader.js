@@ -14,14 +14,68 @@
 //   GOOGLE_MODE=1             navigate to article with google.com as Referer
 //   MOBILE_PCT=0.33           fraction (0..1) of readers that use a mobile viewport (default 0)
 //   BOUNCE_PCT=0.20           fraction (0..1) of readers that leave early after 15-30s (default 0.20)
+const path = require('path');
+const fs   = require('fs');
 const { chromium } = require('playwright-extra');
+
+async function makeWebm(frames, outPath) {
+  const { execFileSync } = require('child_process');
+  const ffmpeg = require('ffmpeg-static');
+  const os = require('os');
+  if (!frames.length) return;
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'reader-frames-'));
+  try {
+    frames.forEach((buf, i) =>
+      fs.writeFileSync(path.join(tmpDir, `f${String(i).padStart(4, '0')}.png`), buf));
+    fs.mkdirSync(path.dirname(outPath), { recursive: true });
+    execFileSync(ffmpeg, [
+      '-y', '-framerate', '2',
+      '-i', path.join(tmpDir, 'f%04d.png'),
+      '-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '33',
+      '-pix_fmt', 'yuv420p', outPath,
+    ], { stdio: 'pipe' });
+  } finally {
+    fs.readdirSync(tmpDir).forEach(f => fs.unlinkSync(path.join(tmpDir, f)));
+    fs.rmdirSync(tmpDir);
+  }
+}
+
+async function makeGif(frames, outPath) {
+  const { PNG } = require('pngjs');
+  const GIFEncoder = require('gif-encoder-2');
+  if (!frames.length) return;
+  const first = PNG.sync.read(frames[0]);
+  const enc = new GIFEncoder(first.width, first.height, 'neuquant', true);
+  enc.setDelay(400);
+  enc.setRepeat(0);
+  enc.start();
+  for (const buf of frames) {
+    const img = PNG.sync.read(buf);
+    enc.addFrame(img.data);
+  }
+  enc.finish();
+  fs.mkdirSync(path.dirname(outPath), { recursive: true });
+  fs.writeFileSync(outPath, enc.out.getData());
+}
+
+async function makeRecording(frames, outPath) {
+  let hasffmpeg = false;
+  try { require('ffmpeg-static'); hasffmpeg = true; } catch (_) {}
+  if (hasffmpeg) {
+    await makeWebm(frames, outPath);
+  } else {
+    await makeGif(frames, outPath.replace(/\.webm$/, '.gif'));
+  }
+}
+
+const SESSION_FILE = path.join(__dirname, '../local-secrets/tds-session.json');
 // Stealth is only needed for local Chromium — Scrapfly handles fingerprinting server-side.
 if (!process.env.SCRAPFLY_API_KEY) {
   const StealthPlugin = require('puppeteer-extra-plugin-stealth');
   chromium.use(StealthPlugin());
 }
 
-const [, , url, label = 'run', n = '2', secs = '70'] = process.argv;
+const [, , url, label = 'run', n = '2', secs = '450'] = process.argv;
 const readers = Number(n);
 const stay = Number(secs) * 1000;
 const clickProb = Math.min(1, Math.max(0, Number(process.env.CLICK_LINK_PROB ?? 0.25)));
@@ -101,18 +155,18 @@ async function simulateTabSwitch(page) {
 // Pause length depends on where the reader is on the page.
 function pauseFor(progress) {
   let lo, hi;
-  if (progress < 0.1) { lo = 5; hi = 9; }        // top: headline / hero, read carefully
-  else if (progress > 0.9) { lo = 4; hi = 8; }   // bottom: last section / footer
-  else { lo = 2; hi = 5; }                       // middle: skimming
+  if (progress < 0.1) { lo = 8; hi = 15; }       // top: headline / hero, read carefully
+  else if (progress > 0.9) { lo = 6; hi = 12; }  // bottom: last section / footer
+  else { lo = 4; hi = 9; }                        // middle: steady reading
   let s = rand(lo, hi);
-  if (Math.random() < 0.1) s += rand(4, 8);      // occasionally stops to read something closely
+  if (Math.random() < 0.12) s += rand(8, 18);    // occasionally stops to read something closely
   return s * 1000;
 }
 
 async function pickInternalLink(page) {
   const links = await page.locator('a[href^="/"]:visible').evaluateAll((as) =>
     as.map((a, i) => ({ i, href: a.getAttribute('href') || '' })));
-  const SHORT_PATH = /\/(category|tag|videos?|author|topic|archive|page|search|feed)\b/i;
+  const SHORT_PATH = /\/(category|tag|videos?|author|topic|archive|page|search|feed|privacy|terms|about|contact|advertise|membership|newsletter|u\/|sign-?in|sign-?up|login|logout|cookie|legal|policy|imprint)\b/i;
   const ok = links.filter((l) => {
     if (l.href.startsWith('//') || l.href === '/' || AVOID.test(l.href)) return false;
     if (SHORT_PATH.test(l.href)) return false;
@@ -208,20 +262,28 @@ async function readerRun(browser, i) {
   let bounced = false, scrolledToComments = false, secondVisit = false;
   let readTime = readerStay;
   let ctx = null, page = null;
+  const gifFrames = [];
+  let gifTimer = null;
   const secondUrl = process.env.SECOND_URL || null;
   const secondProb = parseFloat(process.env.SECOND_READ_PROB ?? '0.35');
   const tracked = [];
 
   try {
     if (remote) browser = await connectScrapfly(mobile);
+    const vp = mobile ? { width: 390, height: 844 } : { width: 1366, height: 768 };
+    const recordVideo = process.env.RECORD
+      ? { dir: path.join(__dirname, 'recordings'), size: vp }
+      : undefined;
     ctx = remote
       ? (browser.contexts()[0] || await browser.newContext())
-      : await browser.newContext({
-          viewport: mobile ? { width: 390, height: 844 } : { width: 1366, height: 768 },
-          ...dataImpulseProxy()
-        });
+      : await browser.newContext({ viewport: vp, ...dataImpulseProxy(), ...(recordVideo ? { recordVideo } : {}) });
     page = remote ? (ctx.pages()[0] || await ctx.newPage()) : await ctx.newPage();
     if (remote && mobile) await page.setViewportSize({ width: 390, height: 844 });
+    // Inject saved TDS session cookies when running locally in visible mode.
+    if (!remote && process.env.HEADLESS === '0' && fs.existsSync(SESSION_FILE)) {
+      const cookies = JSON.parse(fs.readFileSync(SESSION_FILE, 'utf8'));
+      await ctx.addCookies(cookies);
+    }
     page.on('request', (r) => {
       if (r.url().includes('/__l5e/')) tracked.push(`${r.method()} ${new URL(r.url()).pathname}`);
     });
@@ -316,6 +378,33 @@ async function readerRun(browser, i) {
       httpStatus = resp ? resp.status() : null;
     }
 
+    // Dismiss cookie consent banners if present (non-essential cookies rejected).
+    await page.evaluate(() => {
+      const labels = /reject all|reject cookies|decline|necessary only|accept required/i;
+      const btns = [...document.querySelectorAll('button')];
+      const reject = btns.find(b => labels.test(b.innerText));
+      if (reject) { reject.click(); return; }
+      // Fallback: accept all if no reject option visible (consent still better than frozen popup).
+      const accept = btns.find(b => /accept all|accept cookies|agree/i.test(b.innerText));
+      if (accept) accept.click();
+    }).catch(() => {});
+    await sleep(rand(500, 1000));
+
+    // SCREENSHOT=1: save a screenshot of what the browser sees at page load.
+    if (process.env.SCREENSHOT) {
+      const screenshotPath = path.join(__dirname, `screenshot-reader${i + 1}.png`);
+      await page.screenshot({ path: screenshotPath, fullPage: true }).catch(() => {});
+      console.error(`[screenshot] saved ${screenshotPath}`);
+    }
+
+    // RECORD=1 on remote (Scrapfly): capture frames every 3s and stitch into a GIF.
+    if (process.env.RECORD && remote) {
+      gifTimer = setInterval(async () => {
+        const buf = await page.screenshot({ fullPage: false }).catch(() => null);
+        if (buf) gifFrames.push(buf);
+      }, 3000);
+    }
+
     // Did we get the real page, or a block / challenge / error page?
     // Single-page apps render after "load", so give the text a few seconds to appear.
     for (let t = 0; t < 5; t++) {
@@ -333,10 +422,10 @@ async function readerRun(browser, i) {
     else if (words !== null && words < 30) notReached = `almost empty page (${words} words)`;
     reached = !notReached;
 
-    // Adjust read time based on article length (skim rate ~500 WPM = 120ms/word).
-    // Clamped between 60s and the original stay time.
+    // Adjust read time based on article length (~250 WPM = 240ms/word for careful reading).
+    // Clamped between 120s and the original stay time.
     if (reached && words && words > 100) {
-      readTime = Math.max(60000, Math.min(readerStay, words * 120));
+      readTime = Math.max(120000, Math.min(readerStay, words * 240));
     }
 
     // A person who lands on a block page leaves; do the same instead of "reading" it.
@@ -348,13 +437,27 @@ async function readerRun(browser, i) {
       // Early bounce: reader leaves after 15-30s without reading the whole article.
       if (Date.now() - start >= bounceAfterMs) { bounced = true; break; }
 
-      // When near the bottom, rush to the comments section then stop.
-      if (!scrolledToComments && progress >= 0.80) {
+      // Near the bottom: finish reading, then either stop or scroll back up to re-read a section.
+      if (!scrolledToComments && progress >= 0.85) {
+        // Scroll to the very bottom.
         const info2 = await scrollInfo(page);
         const toBottom = info2.h - info2.y - info2.vh;
-        if (toBottom > 100) await smoothScroll(page, toBottom * 0.95);
+        if (toBottom > 50) await smoothScroll(page, toBottom);
         scrolledToComments = true;
-        await sleep(rand(3000, 7000));
+        await sleep(rand(4000, 9000)); // pause at bottom to read conclusion / comments
+        // 45% of readers scroll back up to re-read a section before leaving.
+        if (Math.random() < 0.45 && readTime - (Date.now() - start) > 20000) {
+          const scrollBackDist = rand(0.3, 0.7); // scroll back 30-70% of the page
+          const info3 = await scrollInfo(page);
+          await smoothScroll(page, -info3.h * scrollBackDist);
+          scrollUps++;
+          await sleep(rand(5000, 12000)); // read the re-visited section
+          // then scroll forward again slowly to the end
+          const info4 = await scrollInfo(page);
+          const remaining = info4.h - info4.y - info4.vh;
+          if (remaining > 100) await smoothScroll(page, remaining);
+          await sleep(rand(3000, 6000));
+        }
         break;
       }
 
@@ -391,14 +494,14 @@ async function readerRun(browser, i) {
       // Mostly read downward; sometimes scroll back up to re-read.
       const goUp = info.y > 400 && Math.random() < scrollUpP;
       if (goUp) {
-        await smoothScroll(page, -rand(100, 320));
+        await smoothScroll(page, -rand(60, 200));
         scrollUps++;
       } else if (Math.random() < keyboardP) {
-        // Keyboard-based scroll instead of mouse wheel.
-        const key = Math.random() < 0.6 ? 'Space' : 'PageDown';
+        // Keyboard-based scroll: use arrow keys for slow deliberate reading.
+        const key = Math.random() < 0.5 ? 'ArrowDown' : (Math.random() < 0.5 ? 'Space' : 'PageDown');
         await page.keyboard.press(key);
       } else {
-        await smoothScroll(page, rand(150, 450));
+        await smoothScroll(page, rand(60, 180));  // small steps = slow careful reading
       }
       steps++;
 
@@ -438,8 +541,28 @@ async function readerRun(browser, i) {
   const webdriver = page ? await page.evaluate(() => navigator.webdriver).catch(() => null) : null;
   let finalPath = null;
   if (page) try { finalPath = new URL(page.url()).pathname; } catch (e) {}
+  if (gifTimer) clearInterval(gifTimer);
+  if (gifFrames.length) {
+    const recPath = path.join(__dirname, 'recordings', `reader${i + 1}-${Date.now()}.webm`);
+    await makeRecording(gifFrames, recPath).catch(e => console.error('[recording error]', e.message));
+    const saved = recPath.replace(/\.webm$/, '') + ((() => { try { require('ffmpeg-static'); return '.webm'; } catch(_) { return '.gif'; } })());
+    console.error(`[recording] ${saved}`);
+  }
   if (remote) { if (browser) await browser.close().catch(() => {}); }
-  else if (ctx) await ctx.close();
+  else if (ctx) {
+    if (process.env.RECORD && page) {
+      const videoPath = await page.video()?.path().catch(() => null);
+      await ctx.close();
+      if (videoPath) {
+        const dest = path.join(__dirname, 'recordings', `reader${i + 1}-${Date.now()}.webm`);
+        fs.mkdirSync(path.dirname(dest), { recursive: true });
+        try { fs.renameSync(videoPath, dest); } catch (_) {}
+        console.error(`[recording] ${dest}`);
+      }
+    } else {
+      await ctx.close();
+    }
+  }
   return {
     label, reader: i + 1, startedAt, seconds, status, webdriver,
     reached, notReached, httpStatus, title, words,
@@ -455,7 +578,10 @@ async function readerRun(browser, i) {
   const args = process.env.NO_AUTOMATION_FLAG ? ['--disable-blink-features=AutomationControlled'] : [];
   // SCRAPFLY_API_KEY set: each reader runs in its own Scrapfly Cloud Browser session
   //   (SCRAPFLY_PROXY_POOL=residential|datacenter, SCRAPFLY_COUNTRY=us).
-  const browser = process.env.SCRAPFLY_API_KEY ? null : await chromium.launch({ args });
+  const browser = process.env.SCRAPFLY_API_KEY ? null : await chromium.launch({
+    args,
+    headless: process.env.HEADLESS !== '0',
+  });
   const results = await Promise.all(Array.from({ length: readers }, (_, i) => readerRun(browser, i)));
   if (browser) await browser.close();
   for (const r of results) console.log(JSON.stringify(r));

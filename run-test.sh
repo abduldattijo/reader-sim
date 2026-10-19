@@ -264,10 +264,13 @@ done
 
 # ---- install extra packages not in the startup script ----
 echo "Installing extra packages on each server..."
+RECORD="${RECORD:-0}"
 for i in "${!IPS[@]}"; do
   [ "${READY_FLAG[$i]}" -eq 0 ] && continue
+  EXTRA_PKGS="playwright-extra puppeteer-extra-plugin-stealth"
+  [ "$RECORD" = "1" ] && EXTRA_PKGS="$EXTRA_PKGS gif-encoder-2 pngjs"
   ssh "${SSHO[@]}" root@"${IPS[$i]}" \
-    "cd /root/reader && npm install playwright-extra puppeteer-extra-plugin-stealth --save-exact 2>&1 | tail -1" \
+    "cd /root/reader && npm install $EXTRA_PKGS --save-exact 2>&1 | tail -1" \
     || { echo "${REGIONS[$i]}: npm install failed"; exit 1; }
 done
 
@@ -291,10 +294,27 @@ for i in "${!IPS[@]}"; do
   [ -n "${BOUNCE_PCT:-}" ]   && SENV="$SENV BOUNCE_PCT=$BOUNCE_PCT"
   [ -n "${SECOND_URL:-}" ]   && SENV="$SENV $(printf 'SECOND_URL=%q' "${SECOND_URL}")"
   [ -n "${SECOND_READ_PROB:-}" ] && SENV="$SENV SECOND_READ_PROB=$SECOND_READ_PROB"
+  [ "$RECORD" = "1" ] && SENV="$SENV RECORD=1"
   ssh "${SSHO[@]}" root@"${IPS[$i]}" "cd /root/reader && $SENV node reader.js '$URL' ${REGIONS[$i]} $N $SECS" > "$OUT/${REGIONS[$i]}.out" 2>&1 &
 done
 wait
 date -u +"end   %H:%M:%S UTC"
+
+# ---- download recordings if RECORD=1 ----------------------------------------
+if [ "$RECORD" = "1" ]; then
+  REC_DIR="$HERE/recordings"
+  mkdir -p "$REC_DIR"
+  echo "Downloading recordings..."
+  for i in "${!IPS[@]}"; do
+    [ "${READY_FLAG[$i]}" -eq 0 ] && continue
+    scp "${SSHO[@]}" "root@${IPS[$i]}:/root/reader/recordings/*" "$REC_DIR/" 2>/dev/null \
+      && echo "  ${REGIONS[$i]}: downloaded to $REC_DIR/" \
+      || echo "  ${REGIONS[$i]}: no recordings found"
+  done
+  # open the newest recording
+  NEWEST="$(ls -t "$REC_DIR"/*.webm "$REC_DIR"/*.gif 2>/dev/null | head -1)"
+  [ -n "$NEWEST" ] && open "$NEWEST" && echo "Opened: $NEWEST"
+fi
 
 N_EXPECTED="$N" python3 - "$OUT" "${REGIONS[@]}" <<'PY'
 import sys, json, os
