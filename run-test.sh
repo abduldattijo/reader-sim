@@ -182,6 +182,96 @@ if [ "$SCRAPFLY_ON" -eq 1 ] && [ "$TOTAL" -gt 5 ]; then
 fi
 if [ "$DRY" -eq 1 ]; then echo; echo "Dry run: nothing created."; exit 0; fi
 
+# ---- GitHub Actions mode: run readers directly on this machine ---------------
+# When GITHUB_ACTIONS=true, skip Vultr entirely and run node reader.js locally.
+# Scrapfly handles the actual browser + proxy, so no local Chromium is needed.
+if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
+  echo "GitHub Actions mode: running readers locally (no VPS)"
+  echo "Installing npm packages..."
+  (cd "$HERE" && npm install playwright-extra puppeteer-extra-plugin-stealth gif-encoder-2 pngjs --save-exact 2>&1 | tail -2)
+
+  CLICK_PROB="${CLICK_LINK_PROB:-0.25}"
+  RECORD="${RECORD:-0}"
+  OUT="$(mktemp -d)"
+  echo; echo "Running $TOTAL readers (link-click chance: $CLICK_PROB)..."; date -u +"start %H:%M:%S UTC"
+
+  for i in "${!REGIONS[@]}"; do
+    SENV="NO_AUTOMATION_FLAG=1 CLICK_LINK_PROB=$CLICK_PROB"
+    [ "$SCRAPFLY_ON" -eq 1 ] && SENV="$(printf 'SCRAPFLY_API_KEY=%q SCRAPFLY_COUNTRY=%q' "$SF_KEY" "${SF_COUNTRIES[$i]}") $SENV"
+    [ "$SOCIAL_MODE"         -eq 1 ] && SENV="$SENV SOCIAL_MODE=1"
+    [ "${GOOGLE_MODE:-0}"    =  "1" ] && SENV="$SENV GOOGLE_MODE=1"
+    [ -n "${MOBILE_PCT:-}"  ] && SENV="$SENV MOBILE_PCT=$MOBILE_PCT"
+    [ -n "${BOUNCE_PCT:-}"  ] && SENV="$SENV BOUNCE_PCT=$BOUNCE_PCT"
+    [ -n "${SECOND_URL:-}"  ] && SENV="$SENV $(printf 'SECOND_URL=%q' "${SECOND_URL}")"
+    [ -n "${SECOND_READ_PROB:-}" ] && SENV="$SENV SECOND_READ_PROB=$SECOND_READ_PROB"
+    [ "$RECORD" = "1"       ] && SENV="$SENV RECORD=1"
+    eval "env $SENV node '$HERE/reader.js' '$URL' '${REGIONS[$i]}' $N $SECS" \
+      > "$OUT/${REGIONS[$i]}.out" 2>&1 &
+  done
+  wait
+  date -u +"end   %H:%M:%S UTC"
+
+  if [ "$RECORD" = "1" ]; then
+    REC_DIR="$HERE/recordings"
+    mkdir -p "$REC_DIR"
+    NEWEST="$(ls -t "$REC_DIR"/*.webm "$REC_DIR"/*.gif 2>/dev/null | head -1)"
+    [ -n "$NEWEST" ] && echo "Recording: $NEWEST"
+  fi
+
+  N_EXPECTED="$N" python3 - "$OUT" "${REGIONS[@]}" <<'PY'
+import sys, json, os
+out = sys.argv[1]
+expected = int(os.environ["N_EXPECTED"])
+ok = bad = 0
+reached_total = 0
+blocked_total = 0
+reasons = []
+for r in sys.argv[2:]:
+    rows, other = [], []
+    try:
+        for l in open(os.path.join(out, r + ".out")):
+            l = l.rstrip("\n")
+            if l.startswith("{"): rows.append(json.loads(l))
+            elif l.strip(): other.append(l.strip())
+    except FileNotFoundError:
+        bad += expected; reasons.append(f"  {r}: no output file"); continue
+    good = [x for x in rows if x["status"] == "ok" and not x.get("bounced")]
+    ok += len(good)
+    bounced_readers = sum(1 for x in rows if x.get("bounced"))
+    mobile_readers  = sum(1 for x in rows if x.get("mobile"))
+    clicks  = [x["clicked"] for x in rows if x.get("clicked") and x["clicked"] not in ("click-failed","no-link-found")]
+    ups  = sum(x.get("scrollUps",0) for x in rows)
+    sels = sum(x.get("textSelections",0) for x in rows)
+    steps_total = sum(x.get("steps",0) for x in rows)
+    extra = f", {len(clicks)} clicked a link" if any("clicked" in x for x in rows) else ""
+    if bounced_readers: extra += f", {bounced_readers} bounced early"
+    if mobile_readers:  extra += f", {mobile_readers} mobile"
+    reached = [x for x in rows if x.get("reached", True)]
+    reached_total += len(reached)
+    blocked_total += len(rows) - len(reached)
+    print(f"{r}: {len(reached)}/{expected} reached the real page, {len(good)}/{expected} ran to the end, {steps_total} scroll steps ({ups} back), {sels} text selections{extra}")
+    for x in rows:
+        path = x.get("finalPath") or "?"
+        secs = x.get("seconds","?")
+        print(f"  reader {x['reader']}: {x.get('steps',0)} steps, {x.get('scrollUps',0)} back, {x.get('textSelections',0)} sel, {secs}s — landed on {path!r}")
+    for x in rows:
+        if not x.get("reached", True):
+            reasons.append(f"  {r}: did NOT reach page - {x.get('notReached','unknown')}")
+    for x in rows:
+        if x["status"] != "ok":
+            bad += 1; reasons.append(f"  {r} reader {x['reader']}: failed after {x['seconds']}s - {x['status']}")
+    missing = expected - len(rows)
+    if missing > 0:
+        bad += missing; reasons.append(f"  {r}: {missing} reader(s) gave no result - {('; '.join(other[:3]))[:200] or 'no output'}")
+print(f"Total: {reached_total} reached the real page, {blocked_total} blocked; {ok} ran to the end, {bad} failed")
+if reasons:
+    print("Failure reasons:")
+    for line in reasons: print(line)
+PY
+  rm -rf "$OUT"
+  exit 0
+fi
+
 # ---- create -----------------------------------------------------------------
 RUNID="$(date +%H%M%S)"
 IDS=();
