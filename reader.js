@@ -244,7 +244,7 @@ async function readerRun(browser, i) {
   const readMult    = rand(0.60, 1.60);          // skim (60%) to deep-read (160%) of base time
   const readerStay  = Math.round(stay * readMult);
   const tabSwitchP  = rand(0.02, 0.30);          // focused reader to heavy multitasker
-  const scrollUpP   = rand(0.08, 0.42);          // rarely re-reads to constantly scrolls back
+  const scrollUpP   = rand(0.05, 0.18);          // occasionally re-reads a section; net progress stays forward
   const domBonusP   = rand(0.15, 0.70);          // glances past images to studies every chart
   const keyboardP   = rand(0.05, 0.35);          // mostly mouse to keyboard-first scroller
   const mySelectP   = rand(0.03, 0.38);          // never highlights to highlights constantly
@@ -501,7 +501,7 @@ async function readerRun(browser, i) {
         const key = Math.random() < 0.5 ? 'ArrowDown' : (Math.random() < 0.5 ? 'Space' : 'PageDown');
         await page.keyboard.press(key);
       } else {
-        await smoothScroll(page, rand(60, 180));  // small steps = slow careful reading
+        await smoothScroll(page, rand(80, 250));  // deliberate reading pace, reaches bottom in ~450s
       }
       steps++;
 
