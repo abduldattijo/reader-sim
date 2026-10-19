@@ -1,3 +1,4 @@
 .run-count
 node_modules/
 *.log
+.snapshot-id

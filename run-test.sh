@@ -38,8 +38,13 @@ SSH_KEY_NAME="reader-sim"
 SCRIPT_NAME="reader-install"
 LABEL_PREFIX="reader-run"
 KEYFILE="$HOME/.ssh/vultr_reader_ed25519"
-MAX_READY_WAIT=900                # seconds to wait for the startup script
 SECRETS="$HERE/../local-secrets/api keys.md"
+SNAPSHOT_FILE="$HERE/.snapshot-id"
+# If a pre-baked snapshot exists (run bake-snapshot.sh once to create it),
+# boot from it — no startup script needed, ready in ~30s instead of 5-8 min.
+SNAP_ID=""
+[ -f "$SNAPSHOT_FILE" ] && SNAP_ID="$(cat "$SNAPSHOT_FILE" | tr -d '[:space:]')"
+MAX_READY_WAIT=$([ -n "$SNAP_ID" ] && echo 120 || echo 900)
 
 [ "$N" -ge 1 ] 2>/dev/null && [ "$N" -le 10 ] || { echo "readers per server must be 1..10"; exit 1; }
 
@@ -137,12 +142,16 @@ if not a: sys.exit("API error: "+str(d.get("error", d))[:200])
 print("  account ok, name:", a.get("name"))' || exit 1
 
 SSHKEY_ID="$(api GET "/ssh-keys?per_page=100" | py 'print(next((k["id"] for k in d.get("ssh_keys",[]) if k["name"]=="'"$SSH_KEY_NAME"'"),""))')"
-SCRIPT_ID="$(api GET "/startup-scripts?per_page=100" | py 'print(next((k["id"] for k in d.get("startup_scripts",[]) if k["name"]=="'"$SCRIPT_NAME"'"),""))')"
-OS_ID="$(api GET "/os?per_page=500" | py 'print(next((k["id"] for k in d.get("os",[]) if k["name"]=="'"$OS_NAME"'"),""))')"
 [ -n "$SSHKEY_ID" ] || { echo "SSH key '$SSH_KEY_NAME' not found in Vultr"; exit 1; }
-[ -n "$SCRIPT_ID" ] || { echo "Startup script '$SCRIPT_NAME' not found in Vultr"; exit 1; }
-[ -n "$OS_ID" ]     || { echo "OS '$OS_NAME' not found"; exit 1; }
-echo "  ssh key id: $SSHKEY_ID | startup script id: $SCRIPT_ID | os id: $OS_ID"
+if [ -n "$SNAP_ID" ]; then
+  echo "  ssh key id: $SSHKEY_ID | snapshot: $SNAP_ID (fast boot)"
+else
+  SCRIPT_ID="$(api GET "/startup-scripts?per_page=100" | py 'print(next((k["id"] for k in d.get("startup_scripts",[]) if k["name"]=="'"$SCRIPT_NAME"'"),""))')"
+  OS_ID="$(api GET "/os?per_page=500" | py 'print(next((k["id"] for k in d.get("os",[]) if k["name"]=="'"$OS_NAME"'"),""))')"
+  [ -n "$SCRIPT_ID" ] || { echo "Startup script '$SCRIPT_NAME' not found in Vultr"; exit 1; }
+  [ -n "$OS_ID" ]     || { echo "OS '$OS_NAME' not found"; exit 1; }
+  echo "  ssh key id: $SSHKEY_ID | startup script id: $SCRIPT_ID | os id: $OS_ID"
+fi
 [ -f "$KEYFILE" ] || { echo "Missing private key $KEYFILE"; exit 1; }
 
 LEFT="$(api GET "/instances?per_page=100" | py 'print(" ".join(i["label"] for i in d.get("instances",[]) if i["label"].startswith("'"$LABEL_PREFIX"'")))')"
@@ -177,19 +186,23 @@ if [ "$DRY" -eq 1 ]; then echo; echo "Dry run: nothing created."; exit 0; fi
 RUNID="$(date +%H%M%S)"
 IDS=();
 for r in "${REGIONS[@]}"; do
-  RESP="$(V_REGION="$r" V_PLAN="$PLAN" V_OSID="$OS_ID" V_LABEL="$LABEL_PREFIX-$r-$RUNID" V_HOST="$LABEL_PREFIX-$r" V_SSHKEY="$SSHKEY_ID" V_SCRIPT="$SCRIPT_ID" VULTR_KEY="$KEY" python3 -c "
+  RESP="$(V_REGION="$r" V_PLAN="$PLAN" V_OSID="${OS_ID:-0}" V_SNAPID="${SNAP_ID:-}" V_LABEL="$LABEL_PREFIX-$r-$RUNID" V_HOST="$LABEL_PREFIX-$r" V_SSHKEY="$SSHKEY_ID" V_SCRIPT="${SCRIPT_ID:-}" VULTR_KEY="$KEY" python3 -c "
 import json, os, urllib.request, urllib.error
+snap = os.environ.get('V_SNAPID','').strip()
 data = {
   'region': os.environ['V_REGION'],
   'plan': os.environ['V_PLAN'],
-  'os_id': int(os.environ['V_OSID']),
   'label': os.environ['V_LABEL'],
   'hostname': os.environ['V_HOST'],
   'backups': 'disabled',
   'enable_ipv6': False,
   'sshkey_id': [os.environ['V_SSHKEY']],
-  'script_id': os.environ['V_SCRIPT'],
 }
+if snap:
+  data['snapshot_id'] = snap
+else:
+  data['os_id'] = int(os.environ['V_OSID'])
+  data['script_id'] = os.environ['V_SCRIPT']
 body = json.dumps(data).encode('utf-8')
 req = urllib.request.Request(
   'https://api.vultr.com/v2/instances',
@@ -262,17 +275,18 @@ for i in "${!IPS[@]}"; do
     || { echo "${REGIONS[$i]}: could not upload reader.js"; exit 1; }
 done
 
-# ---- install extra packages not in the startup script ----
-echo "Installing extra packages on each server..."
+# ---- install extra packages (skipped when booting from snapshot — already baked in) ----
 RECORD="${RECORD:-0}"
-for i in "${!IPS[@]}"; do
-  [ "${READY_FLAG[$i]}" -eq 0 ] && continue
-  EXTRA_PKGS="playwright-extra puppeteer-extra-plugin-stealth"
-  [ "$RECORD" = "1" ] && EXTRA_PKGS="$EXTRA_PKGS gif-encoder-2 pngjs"
-  ssh "${SSHO[@]}" root@"${IPS[$i]}" \
-    "cd /root/reader && npm install $EXTRA_PKGS --save-exact 2>&1 | tail -1" \
-    || { echo "${REGIONS[$i]}: npm install failed"; exit 1; }
-done
+if [ -z "$SNAP_ID" ]; then
+  echo "Installing extra packages on each server..."
+  for i in "${!IPS[@]}"; do
+    [ "${READY_FLAG[$i]}" -eq 0 ] && continue
+    EXTRA_PKGS="playwright-extra puppeteer-extra-plugin-stealth gif-encoder-2 pngjs"
+    ssh "${SSHO[@]}" root@"${IPS[$i]}" \
+      "cd /root/reader && npm install $EXTRA_PKGS --save-exact 2>&1 | tail -1" \
+      || { echo "${REGIONS[$i]}: npm install failed"; exit 1; }
+  done
+fi
 
 # ---- run readers --------------------------------------------------------------
 # CLICK_LINK_PROB (0..1) = chance a reader clicks one internal link mid-visit. Default 0.
