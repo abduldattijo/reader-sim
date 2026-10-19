@@ -46,7 +46,7 @@ async function makeGif(frames, outPath) {
   if (!frames.length) return;
   const first = PNG.sync.read(frames[0]);
   const enc = new GIFEncoder(first.width, first.height, 'neuquant', true);
-  enc.setDelay(400);
+  enc.setDelay(1500); // 3s real time per frame → 1500ms playback ≈ 2× speedup
   enc.setRepeat(0);
   enc.start();
   for (const buf of frames) {
@@ -378,17 +378,34 @@ async function readerRun(browser, i) {
       httpStatus = resp ? resp.status() : null;
     }
 
-    // Dismiss cookie consent banners if present (non-essential cookies rejected).
-    await page.evaluate(() => {
-      const labels = /reject all|reject cookies|decline|necessary only|accept required/i;
-      const btns = [...document.querySelectorAll('button')];
-      const reject = btns.find(b => labels.test(b.innerText));
-      if (reject) { reject.click(); return; }
-      // Fallback: accept all if no reject option visible (consent still better than frozen popup).
-      const accept = btns.find(b => /accept all|accept cookies|agree/i.test(b.innerText));
-      if (accept) accept.click();
-    }).catch(() => {});
-    await sleep(rand(500, 1000));
+    // Dismiss cookie consent and sticky banners — run twice (immediately + after 2s) because
+    // TDS/Medium banners often appear a couple of seconds after the initial page load.
+    async function dismissBanners() {
+      await page.evaluate(() => {
+        // Cookie consent: prefer reject, fall back to accept so the page isn't frozen.
+        const rejectRe = /reject all|reject cookies|decline|necessary only|accept required/i;
+        const acceptRe = /accept all|accept cookies|agree/i;
+        const closeRe  = /^close$|^dismiss$|^no thanks$/i;
+        const btns = [...document.querySelectorAll('button, [role="button"]')];
+        const reject = btns.find(b => rejectRe.test(b.innerText || b.getAttribute('aria-label') || ''));
+        if (reject) { reject.click(); }
+        else {
+          const accept = btns.find(b => acceptRe.test(b.innerText || b.getAttribute('aria-label') || ''));
+          if (accept) accept.click();
+        }
+        // Close sticky newsletter / promo bars (Medium partner bars, TDS subscription nag).
+        const close = btns.find(b =>
+          closeRe.test(b.innerText || '') ||
+          /close/i.test(b.getAttribute('aria-label') || '') ||
+          b.getAttribute('data-testid') === 'close-button'
+        );
+        if (close) close.click();
+      }).catch(() => {});
+    }
+    await dismissBanners();
+    await sleep(2000);
+    await dismissBanners(); // second pass catches banners that load after initial render
+    await sleep(rand(300, 600));
 
     // SCREENSHOT=1: save a screenshot of what the browser sees at page load.
     if (process.env.SCREENSHOT) {
