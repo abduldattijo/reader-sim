@@ -74,7 +74,7 @@ async function viewportContent(page) {
     const vh = window.innerHeight;
     const inView = el => { const r = el.getBoundingClientRect(); return r.top < vh && r.bottom > 0; };
     return {
-      hasCode:  [...document.querySelectorAll('pre, code')].some(inView),
+      hasCode:  [...document.querySelectorAll('pre')].some(inView),
       hasImage: [...document.querySelectorAll('img, figure, [data-testid="image"]')].some(inView),
       hasHead:  [...document.querySelectorAll('h1,h2,h3,h4')].some(inView),
     };
@@ -112,7 +112,14 @@ function pauseFor(progress) {
 async function pickInternalLink(page) {
   const links = await page.locator('a[href^="/"]:visible').evaluateAll((as) =>
     as.map((a, i) => ({ i, href: a.getAttribute('href') || '' })));
-  const ok = links.filter((l) => !l.href.startsWith('//') && l.href !== '/' && !AVOID.test(l.href));
+  const SHORT_PATH = /\/(category|tag|videos?|author|topic|archive|page|search|feed)\b/i;
+  const ok = links.filter((l) => {
+    if (l.href.startsWith('//') || l.href === '/' || AVOID.test(l.href)) return false;
+    if (SHORT_PATH.test(l.href)) return false;
+    // Only follow article-like slugs: path must have at least one segment with dashes (a title slug).
+    const parts = l.href.split('/').filter(Boolean);
+    return parts.length >= 1 && parts[parts.length - 1].includes('-');
+  });
   if (!ok.length) return null;
   return ok[Math.floor(Math.random() * ok.length)];
 }
@@ -388,9 +395,12 @@ async function readerRun(browser, i) {
 
       await moveMouse(page, pos, rand(100, 1250), rand(100, 680));
 
-      // DOM-aware pause: linger longer at images, code blocks, and section headers.
+      // DOM-aware pause: linger longer at code blocks, images, and section headers.
+      // Only fires occasionally so it doesn't drag down the overall scroll rate.
       const vc = await viewportContent(page);
-      const domBonus = vc.hasCode ? rand(3000, 7000) : vc.hasImage ? rand(2000, 5000) : vc.hasHead ? rand(1000, 3000) : 0;
+      const domBonus = Math.random() < 0.4
+        ? (vc.hasCode ? rand(1500, 3500) : vc.hasImage ? rand(1000, 2500) : vc.hasHead ? rand(500, 1500) : 0)
+        : 0;
 
       const after = await scrollInfo(page);
       const p2 = Math.min(1, after.y / Math.max(1, after.h - after.vh));

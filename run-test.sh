@@ -319,6 +319,7 @@ for r in sys.argv[2:]:
     clicks = [x["clicked"] for x in rows if x.get("clicked") and x["clicked"] not in ("click-failed", "no-link-found")]
     ups = sum(x.get("scrollUps", 0) for x in rows)
     sels = sum(x.get("textSelections", 0) for x in rows)
+    steps_total = sum(x.get("steps", 0) for x in rows)
     extra = f", {len(clicks)} clicked a link" if any("clicked" in x for x in rows) else ""
     second_visits = sum(1 for x in rows if x.get("secondVisit"))
     if bounced_readers: extra += f", {bounced_readers} bounced early"
@@ -327,11 +328,12 @@ for r in sys.argv[2:]:
     reached = [x for x in rows if x.get("reached", True)]
     reached_total += len(reached)
     blocked_total += len(rows) - len(reached)
-    print(f"{r}: {len(reached)}/{expected} reached the real page, {len(good)}/{expected} ran to the end, event sent by {sum(1 for x in rows if 'POST /__l5e/trackevents' in x['tracked'])}{extra}, {ups} scroll-ups, {sels} text selections")
+    print(f"{r}: {len(reached)}/{expected} reached the real page, {len(good)}/{expected} ran to the end, event sent by {sum(1 for x in rows if 'POST /__l5e/trackevents' in x['tracked'])}{extra}, {steps_total} scroll steps ({ups} back), {sels} text selections")
     for x in rows:
         path = x.get("finalPath") or "?"
         title = (x.get("title") or "?")[:60]
-        print(f"  reader {x['reader']}: landed on {path!r}  title={title!r}")
+        secs = x.get("seconds", "?")
+        print(f"  reader {x['reader']}: {x.get('steps',0)} steps, {x.get('scrollUps',0)} back, {x.get('textSelections',0)} sel, {secs}s — landed on {path!r}")
     seen = {}
     for x in rows:
         if not x.get("reached", True):
