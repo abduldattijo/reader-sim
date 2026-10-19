@@ -75,7 +75,7 @@ if (!process.env.SCRAPFLY_API_KEY) {
   chromium.use(StealthPlugin());
 }
 
-const [, , url, label = 'run', n = '2', secs = '450'] = process.argv;
+const [, , url, label = 'run', n = '2', secs = '400'] = process.argv;
 const readers = Number(n);
 const stay = Number(secs) * 1000;
 const clickProb = Math.min(1, Math.max(0, Number(process.env.CLICK_LINK_PROB ?? 0.25)));
