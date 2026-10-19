@@ -31,7 +31,7 @@ if echo "$URL" | grep -qE '(linkedin\.com|lnkd\.in|twitter\.com|x\.com)'; then
   SOCIAL_MODE=1
 fi
 
-REGIONS=(fra ewr sgp lax ams)     # Frankfurt, New Jersey, Singapore, Los Angeles, Amsterdam
+REGIONS=(fra ewr)     # Frankfurt, New Jersey — 2 regions to stay within Scrapfly 200k/month limit
 PLAN="vc2-1c-2gb"                 # 1 vCPU, 2 GB RAM
 OS_NAME="Ubuntu 24.04 LTS x64"
 SSH_KEY_NAME="reader-sim"
