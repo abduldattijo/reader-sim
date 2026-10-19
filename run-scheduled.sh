@@ -22,7 +22,7 @@ ARTICLES=(
 )
 
 N=1      # readers per server (keep at 1 for Scrapfly DISCOVERY plan)
-SECS=120 # seconds each reader stays on the page
+SECS=200 # seconds each reader stays on the page
 
 COUNTER_FILE="$HERE/.run-count"
 

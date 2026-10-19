@@ -68,6 +68,36 @@ async function scrollInfo(page) {
   }).catch(() => ({ y: 0, h: 0, vh: 768 }));
 }
 
+// Returns what kind of content is currently visible in the viewport.
+async function viewportContent(page) {
+  return page.evaluate(() => {
+    const vh = window.innerHeight;
+    const inView = el => { const r = el.getBoundingClientRect(); return r.top < vh && r.bottom > 0; };
+    return {
+      hasCode:  [...document.querySelectorAll('pre, code')].some(inView),
+      hasImage: [...document.querySelectorAll('img, figure, [data-testid="image"]')].some(inView),
+      hasHead:  [...document.querySelectorAll('h1,h2,h3,h4')].some(inView),
+    };
+  }).catch(() => ({}));
+}
+
+// Simulate a reader switching to another tab and coming back.
+async function simulateTabSwitch(page) {
+  await page.evaluate(() => {
+    try {
+      Object.defineProperty(document, 'hidden', { value: true, configurable: true, writable: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+    } catch (e) {}
+  });
+  await sleep(rand(4000, 18000));
+  await page.evaluate(() => {
+    try {
+      Object.defineProperty(document, 'hidden', { value: false, configurable: true, writable: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+    } catch (e) {}
+  });
+}
+
 // Pause length depends on where the reader is on the page.
 function pauseFor(progress) {
   let lo, hi;
@@ -159,9 +189,11 @@ async function readerRun(browser, i) {
   const clickAt = start + stay * rand(0.4, 0.65);
   let clicked = null, scrollUps = 0, steps = 0, textSelections = 0, status = 'ok';
   let httpStatus = null, title = null, words = null, reached = false, notReached = null;
-  let bounced = false, scrolledToComments = false;
+  let bounced = false, scrolledToComments = false, secondVisit = false;
   let readTime = stay;
   let ctx = null, page = null;
+  const secondUrl = process.env.SECOND_URL || null;
+  const secondProb = parseFloat(process.env.SECOND_READ_PROB ?? '0.35');
   const tracked = [];
 
   try {
@@ -335,18 +367,51 @@ async function readerRun(browser, i) {
         await sleep(rand(400, 1200));
       }
 
+      // Occasionally simulate switching to another tab and coming back (~8% per step).
+      if (Math.random() < 0.08) {
+        await simulateTabSwitch(page);
+      }
+
       // Mostly read downward; sometimes scroll back up to re-read.
       const goUp = info.y > 400 && Math.random() < 0.2;
-      if (goUp) { await smoothScroll(page, -rand(100, 320)); scrollUps++; }
-      else      { await smoothScroll(page, rand(150, 450)); }
+      if (goUp) {
+        await smoothScroll(page, -rand(100, 320));
+        scrollUps++;
+      } else if (Math.random() < 0.15) {
+        // Keyboard-based scroll instead of mouse wheel (~15% of steps).
+        const key = Math.random() < 0.6 ? 'Space' : 'PageDown';
+        await page.keyboard.press(key);
+      } else {
+        await smoothScroll(page, rand(150, 450));
+      }
       steps++;
 
       await moveMouse(page, pos, rand(100, 1250), rand(100, 680));
 
+      // DOM-aware pause: linger longer at images, code blocks, and section headers.
+      const vc = await viewportContent(page);
+      const domBonus = vc.hasCode ? rand(3000, 7000) : vc.hasImage ? rand(2000, 5000) : vc.hasHead ? rand(1000, 3000) : 0;
+
       const after = await scrollInfo(page);
       const p2 = Math.min(1, after.y / Math.max(1, after.h - after.vh));
       const left = stay - (Date.now() - start);
-      await sleep(Math.min(pauseFor(p2), left));
+      await sleep(Math.min(pauseFor(p2) + domBonus, left));
+    }
+
+    // Second article: ~35% of full readers navigate to another article after finishing.
+    // Uses the current page as referer, simulating a click from the article's related section.
+    if (secondUrl && reached && !bounced && Math.random() < secondProb) {
+      const referer = page.url();
+      await sleep(rand(2000, 5000)); // pause before clicking to next article
+      await page.goto(secondUrl, { waitUntil: 'load', timeout, referer }).catch(() => {});
+      await sleep(rand(1500, 3000));
+      const secondDuration = rand(30000, 60000);
+      const secondStart = Date.now();
+      while (Date.now() - secondStart < secondDuration) {
+        await smoothScroll(page, rand(150, 400));
+        await sleep(pauseFor(0.5));
+      }
+      secondVisit = true;
     }
   } catch (e) {
     status = 'error: ' + e.message.split('\n')[0];
@@ -360,7 +425,7 @@ async function readerRun(browser, i) {
   return {
     label, reader: i + 1, startedAt, seconds, status, webdriver,
     reached, notReached, httpStatus, title, words,
-    mobile, bounced, scrolledToComments,
+    mobile, bounced, scrolledToComments, secondVisit,
     steps, scrollUps, textSelections, clicked, finalPath,
     trackedRequests: tracked.length, tracked: [...new Set(tracked)],
   };
