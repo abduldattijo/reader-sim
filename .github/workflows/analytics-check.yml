@@ -1,9 +1,7 @@
 name: analytics-check
 
 on:
-  schedule:
-    - cron: '0 7 * * *'   # 8am WAT (7am UTC) every day
-  workflow_dispatch:        # manual trigger any time
+  workflow_dispatch:        # triggered by cron-job.org every day at 8am WAT (7am UTC)
 
 jobs:
   check:
