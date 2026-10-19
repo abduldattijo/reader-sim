@@ -17,7 +17,6 @@ LINKEDIN_POSTS=(
 # TDS articles — rotate across direct and Google runs. Add new articles here.
 ARTICLES=(
   "https://towardsdatascience.com/can-an-apartment-search-agent-call-the-model-fewer-times-and-still-find-good-matches/"
-  "https://towardsdatascience.com/ai-slop-is-now-in-your-training-dataset-i-tested-three-ways-to-spot-it/"
   "https://towardsdatascience.com/i-tested-four-ways-to-give-an-ai-assistant-a-memory-the-obvious-one-was-the-worst-value/"
   "https://towardsdatascience.com/i-built-a-trap-for-ai-image-judges-they-walked-into-a-different-one/"
 )
