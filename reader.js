@@ -187,13 +187,13 @@ async function readerRun(browser, i) {
   const bounceAfterMs = willBounce ? rand(15000, 30000) : Infinity;
 
   // Per-reader personality — each simulated person behaves differently.
-  const readMult    = rand(0.65, 1.45);          // skim (65%) to deep-read (145%) of base time
+  const readMult    = rand(0.60, 1.60);          // skim (60%) to deep-read (160%) of base time
   const readerStay  = Math.round(stay * readMult);
-  const tabSwitchP  = rand(0.02, 0.18);          // multitasker vs. focused reader
-  const scrollUpP   = rand(0.08, 0.32);          // rarely re-reads vs. often re-reads
-  const domBonusP   = rand(0.20, 0.60);          // glances past images vs. studies them
-  const keyboardP   = rand(0.05, 0.30);          // mostly mouse vs. keyboard scroller
-  const mySelectP   = rand(0.04, 0.28);          // rarely highlights vs. frequent highlighter
+  const tabSwitchP  = rand(0.02, 0.30);          // focused reader to heavy multitasker
+  const scrollUpP   = rand(0.08, 0.42);          // rarely re-reads to constantly scrolls back
+  const domBonusP   = rand(0.15, 0.70);          // glances past images to studies every chart
+  const keyboardP   = rand(0.05, 0.35);          // mostly mouse to keyboard-first scroller
+  const mySelectP   = rand(0.03, 0.38);          // never highlights to highlights constantly
 
   // Scrapfly rate-limits concurrent new sessions; stagger by index (8s apart).
   // Local browsers just need a small random jitter.
