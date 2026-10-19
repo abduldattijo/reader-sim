@@ -32,28 +32,41 @@ if echo "$URL" | grep -qE '(linkedin\.com|lnkd\.in|twitter\.com|x\.com)'; then
 fi
 
 REGIONS=(fra ewr)     # Frankfurt, New Jersey — 2 regions to stay within Scrapfly 200k/month limit
-PLAN="vc2-1c-2gb"                 # 1 vCPU, 2 GB RAM
+LABEL_PREFIX="reader-run"         # ONLY droplets/servers with this name prefix are ever created or destroyed
+KEYFILE="$HOME/.ssh/vultr_reader_ed25519"
+SECRETS="$HERE/../local-secrets/api keys.md"
+
+# ---- detect which VPS provider to use (DO takes priority over Vultr) --------
+DO_KEY="${DO_API_KEY:-}"
+if [ -z "$DO_KEY" ] && [ -f "$SECRETS" ]; then
+  DO_KEY="$(grep -i '^api token for digital ocean' "$SECRETS" | head -1 | sed -E 's/^[^:]*:[[:space:]]*//' | tr -d '[:space:]')"
+fi
+USE_DO=0
+[ -n "$DO_KEY" ] && USE_DO=1
+
+# Vultr-only settings (ignored when USE_DO=1)
+PLAN="vc2-1c-2gb"
 OS_NAME="Ubuntu 24.04 LTS x64"
 SSH_KEY_NAME="reader-sim"
 SCRIPT_NAME="reader-install"
-LABEL_PREFIX="reader-run"
-KEYFILE="$HOME/.ssh/vultr_reader_ed25519"
-SECRETS="$HERE/../local-secrets/api keys.md"
 SNAPSHOT_FILE="$HERE/.snapshot-id"
-# If a pre-baked snapshot exists (run bake-snapshot.sh once to create it),
-# boot from it — no startup script needed, ready in ~30s instead of 5-8 min.
 SNAP_ID=""
 [ -f "$SNAPSHOT_FILE" ] && SNAP_ID="$(cat "$SNAPSHOT_FILE" | tr -d '[:space:]')"
-MAX_READY_WAIT=$([ -n "$SNAP_ID" ] && echo 120 || echo 900)
+
+MAX_READY_WAIT=900
 
 [ "$N" -ge 1 ] 2>/dev/null && [ "$N" -le 10 ] || { echo "readers per server must be 1..10"; exit 1; }
 
-# ---- API key (never printed) ------------------------------------------------
+# ---- API keys (never printed) -----------------------------------------------
 KEY="${VULTR_API_KEY:-}"
 if [ -z "$KEY" ] && [ -f "$SECRETS" ]; then
   KEY="$(grep -i '^vultr api key:' "$SECRETS" | head -1 | sed -E 's/^[^:]*:[[:space:]]*//' | tr -d '[:space:]')"
 fi
-[ -n "$KEY" ] || { echo "No Vultr API key found (set VULTR_API_KEY or add 'vultr api key: ...' to $SECRETS)"; exit 1; }
+# Vultr key only required when not using DigitalOcean
+[ "$USE_DO" -eq 0 ] && [ -z "$KEY" ] && { echo "No Vultr API key found (set VULTR_API_KEY or DO_API_KEY)"; exit 1; }
+
+# DigitalOcean region mapping: fra→fra1, ewr→nyc1
+do_region() { case "$1" in fra) echo fra1;; ewr) echo nyc1;; sgp) echo sgp1;; lax) echo sfo3;; ams) echo ams3;; *) echo nyc1;; esac; }
 
 # ---- optional DataImpulse proxy (credentials never printed) ----------------------
 cc_for() { case "$1" in fra) echo de;; ewr) echo us;; sgp) echo sg;; lax) echo us;; ams) echo nl;; *) echo us;; esac; }
@@ -105,7 +118,7 @@ for c in pool[:${#REGIONS[@]}]: print(c)
 ")
 fi
 
-api() { # api METHOD PATH [JSON_BODY]
+api() { # api METHOD PATH [JSON_BODY]  (Vultr)
   local method="$1" path="$2" body="${3:-}"
   if [ -n "$body" ]; then
     printf 'header = "Authorization: Bearer %s"\n' "$KEY" | \
@@ -115,47 +128,73 @@ api() { # api METHOD PATH [JSON_BODY]
       curl -sS --max-time 60 -K - -X "$method" "https://api.vultr.com/v2$path"
   fi
 }
+do_api() { # do_api METHOD PATH [JSON_BODY]  (DigitalOcean)
+  local method="$1" path="$2" body="${3:-}"
+  if [ -n "$body" ]; then
+    printf 'header = "Authorization: Bearer %s"\n' "$DO_KEY" | \
+      curl -sS --max-time 60 -K - -X "$method" -H "Content-Type: application/json" --data-raw "$body" "https://api.digitalocean.com/v2$path"
+  else
+    printf 'header = "Authorization: Bearer %s"\n' "$DO_KEY" | \
+      curl -sS --max-time 60 -K - -X "$method" "https://api.digitalocean.com/v2$path"
+  fi
+}
 py() { python3 -c "import sys,json
 d=json.load(sys.stdin)
 $1"; }
 
-# ---- cleanup: destroy everything this run created -----------------------------
+# ---- cleanup: destroy everything this run created ----------------------------
+# SAFETY: only ever deletes droplets/instances with names starting reader-run-*
 CREATED=()
 cleanup() {
   trap - EXIT INT TERM
   if [ "${#CREATED[@]}" -gt 0 ]; then
     echo; echo "Destroying ${#CREATED[@]} server(s)..."
     for id in "${CREATED[@]}"; do
-      code=$(printf 'header = "Authorization: Bearer %s"\n' "$KEY" | curl -sS -o /dev/null -w '%{http_code}' -K - -X DELETE "https://api.vultr.com/v2/instances/$id")
-      echo "  $id -> HTTP $code"
+      if [ "$USE_DO" -eq 1 ]; then
+        code=$(printf 'header = "Authorization: Bearer %s"\n' "$DO_KEY" | curl -sS -o /dev/null -w '%{http_code}' -K - -X DELETE "https://api.digitalocean.com/v2/droplets/$id")
+        echo "  $id -> HTTP $code"
+      else
+        code=$(printf 'header = "Authorization: Bearer %s"\n' "$KEY" | curl -sS -o /dev/null -w '%{http_code}' -K - -X DELETE "https://api.vultr.com/v2/instances/$id")
+        echo "  $id -> HTTP $code"
+      fi
     done
-    echo "Done. Check https://my.vultr.com for anything still listed."
+    echo "Done."
   fi
 }
 trap cleanup EXIT INT TERM
 
 # ---- preflight (read-only) --------------------------------------------------
-echo "Checking Vultr account..."
-ACC="$(api GET /account)"
-echo "$ACC" | py 'a=d.get("account")
-if not a: sys.exit("API error: "+str(d.get("error", d))[:200])
-print("  account ok, name:", a.get("name"))' || exit 1
-
-SSHKEY_ID="$(api GET "/ssh-keys?per_page=100" | py 'print(next((k["id"] for k in d.get("ssh_keys",[]) if k["name"]=="'"$SSH_KEY_NAME"'"),""))')"
-[ -n "$SSHKEY_ID" ] || { echo "SSH key '$SSH_KEY_NAME' not found in Vultr"; exit 1; }
-if [ -n "$SNAP_ID" ]; then
-  echo "  ssh key id: $SSHKEY_ID | snapshot: $SNAP_ID (fast boot)"
-else
-  SCRIPT_ID="$(api GET "/startup-scripts?per_page=100" | py 'print(next((k["id"] for k in d.get("startup_scripts",[]) if k["name"]=="'"$SCRIPT_NAME"'"),""))')"
-  OS_ID="$(api GET "/os?per_page=500" | py 'print(next((k["id"] for k in d.get("os",[]) if k["name"]=="'"$OS_NAME"'"),""))')"
-  [ -n "$SCRIPT_ID" ] || { echo "Startup script '$SCRIPT_NAME' not found in Vultr"; exit 1; }
-  [ -n "$OS_ID" ]     || { echo "OS '$OS_NAME' not found"; exit 1; }
-  echo "  ssh key id: $SSHKEY_ID | startup script id: $SCRIPT_ID | os id: $OS_ID"
-fi
 [ -f "$KEYFILE" ] || { echo "Missing private key $KEYFILE"; exit 1; }
 
-LEFT="$(api GET "/instances?per_page=100" | py 'print(" ".join(i["label"] for i in d.get("instances",[]) if i["label"].startswith("'"$LABEL_PREFIX"'")))')"
-[ -z "$LEFT" ] || { echo "Leftover servers from an earlier run: $LEFT. Destroy them first."; exit 1; }
+if [ "$USE_DO" -eq 1 ]; then
+  echo "Checking DigitalOcean account..."
+  DO_SSHKEY_FP="91:02:66:94:20:7e:07:b8:f4:4b:05:90:35:d7:d7:09"  # reader-sim key
+  do_api GET /account | py 'a=d.get("account")
+if not a: sys.exit("DO API error: "+str(d.get("message",d))[:200])
+print("  account ok:", a.get("email"))' || exit 1
+  LEFT="$(do_api GET "/droplets?per_page=100" | py 'print(" ".join(dr["name"] for dr in d.get("droplets",[]) if dr["name"].startswith("'"$LABEL_PREFIX"'")))')"
+  [ -z "$LEFT" ] || { echo "Leftover droplets from an earlier run: $LEFT. Destroy them first."; exit 1; }
+  echo "  ssh key: $DO_SSHKEY_FP | provider: DigitalOcean"
+else
+  echo "Checking Vultr account..."
+  ACC="$(api GET /account)"
+  echo "$ACC" | py 'a=d.get("account")
+if not a: sys.exit("API error: "+str(d.get("error", d))[:200])
+print("  account ok, name:", a.get("name"))' || exit 1
+  SSHKEY_ID="$(api GET "/ssh-keys?per_page=100" | py 'print(next((k["id"] for k in d.get("ssh_keys",[]) if k["name"]=="'"$SSH_KEY_NAME"'"),""))')"
+  [ -n "$SSHKEY_ID" ] || { echo "SSH key '$SSH_KEY_NAME' not found in Vultr"; exit 1; }
+  if [ -n "$SNAP_ID" ]; then
+    echo "  ssh key id: $SSHKEY_ID | snapshot: $SNAP_ID (fast boot)"
+  else
+    SCRIPT_ID="$(api GET "/startup-scripts?per_page=100" | py 'print(next((k["id"] for k in d.get("startup_scripts",[]) if k["name"]=="'"$SCRIPT_NAME"'"),""))')"
+    OS_ID="$(api GET "/os?per_page=500" | py 'print(next((k["id"] for k in d.get("os",[]) if k["name"]=="'"$OS_NAME"'"),""))')"
+    [ -n "$SCRIPT_ID" ] || { echo "Startup script '$SCRIPT_NAME' not found in Vultr"; exit 1; }
+    [ -n "$OS_ID" ]     || { echo "OS '$OS_NAME' not found"; exit 1; }
+    echo "  ssh key id: $SSHKEY_ID | startup script id: $SCRIPT_ID | os id: $OS_ID"
+  fi
+  LEFT="$(api GET "/instances?per_page=100" | py 'print(" ".join(i["label"] for i in d.get("instances",[]) if i["label"].startswith("'"$LABEL_PREFIX"'")))')"
+  [ -z "$LEFT" ] || { echo "Leftover servers from an earlier run: $LEFT. Destroy them first."; exit 1; }
+fi
 
 TOTAL=$(( ${#REGIONS[@]} * N ))
 echo
@@ -174,7 +213,11 @@ elif [ "${GOOGLE_MODE:-0}" = "1" ]; then
   echo "Mode: Google referral — reader arrives with google.com as the Referer"
 fi
 [ "${MOBILE_PCT:-0}" != "0" ] && echo "Mobile: ~$(python3 -c "print(round(${MOBILE_PCT:-0}*100))")% of readers use a mobile viewport"
-echo "Cost estimate: about \$0.02 for a 15-minute run"
+if [ "$USE_DO" -eq 1 ]; then
+  echo "Provider: DigitalOcean (s-1vcpu-2gb, \$0.024/hr each = ~\$0.01 for a 15-min run)"
+else
+  echo "Provider: Vultr (vc2-1c-2gb, ~\$0.02 for a 15-min run)"
+fi
 if [ "$SCRAPFLY_ON" -eq 1 ] && [ "$TOTAL" -gt 5 ]; then
   echo "Warning: Scrapfly plan allows 5 concurrent sessions; $TOTAL readers requested."
   echo "  Reduce readers-per-server to $((5 / ${#REGIONS[@]})) or fewer (e.g. ./run-test.sh <url> 1)."
@@ -273,10 +316,47 @@ PY
 fi
 
 # ---- create -----------------------------------------------------------------
+# SAFETY: all droplet/instance names start with "$LABEL_PREFIX-" so cleanup only
+# ever destroys servers this run created.
 RUNID="$(date +%H%M%S)"
-IDS=();
-for r in "${REGIONS[@]}"; do
-  RESP="$(V_REGION="$r" V_PLAN="$PLAN" V_OSID="${OS_ID:-0}" V_SNAPID="${SNAP_ID:-}" V_LABEL="$LABEL_PREFIX-$r-$RUNID" V_HOST="$LABEL_PREFIX-$r" V_SSHKEY="$SSHKEY_ID" V_SCRIPT="${SCRIPT_ID:-}" VULTR_KEY="$KEY" python3 -c "
+IDS=()
+
+if [ "$USE_DO" -eq 1 ]; then
+  CLOUD_INIT="$(cat "$HERE/cloud-init.sh")"
+  DO_SIZE="s-1vcpu-2gb"     # 2 GB RAM — Playwright needs ~1.5 GB
+  for r in "${REGIONS[@]}"; do
+    RESP="$(V_NAME="$LABEL_PREFIX-$r-$RUNID" V_REGION="$(do_region "$r")" V_SIZE="$DO_SIZE" V_SSHKEY="$DO_SSHKEY_FP" DO_KEY="$DO_KEY" python3 -c "
+import json, os, urllib.request, urllib.error
+user_data = open(os.path.join(os.environ.get('HERE', '.'), 'cloud-init.sh')).read()
+data = {
+  'name': os.environ['V_NAME'],
+  'region': os.environ['V_REGION'],
+  'size': os.environ['V_SIZE'],
+  'image': 'ubuntu-24-04-x64',
+  'ssh_keys': [os.environ['V_SSHKEY']],
+  'user_data': user_data,
+  'tags': ['reader-sim'],
+  'backups': False,
+  'ipv6': False,
+}
+body = json.dumps(data).encode('utf-8')
+req = urllib.request.Request(
+  'https://api.digitalocean.com/v2/droplets', data=body,
+  headers={'Authorization': 'Bearer ' + os.environ['DO_KEY'].strip(), 'Content-Type': 'application/json'},
+  method='POST'
+)
+try:
+  with urllib.request.urlopen(req) as r: print(r.read().decode())
+except urllib.error.HTTPError as e: print(e.read().decode())
+" HERE="$HERE")"
+    ID="$(echo "$RESP" | py 'print(d.get("droplet",{}).get("id",""))')"
+    if [ -z "$ID" ]; then echo "DO create failed in $r: $(echo "$RESP" | head -c 300)"; exit 1; fi
+    CREATED+=("$ID"); IDS+=("$ID")
+    echo "created DO $r -> $ID"
+  done
+else
+  for r in "${REGIONS[@]}"; do
+    RESP="$(V_REGION="$r" V_PLAN="$PLAN" V_OSID="${OS_ID:-0}" V_SNAPID="${SNAP_ID:-}" V_LABEL="$LABEL_PREFIX-$r-$RUNID" V_HOST="$LABEL_PREFIX-$r" V_SSHKEY="$SSHKEY_ID" V_SCRIPT="${SCRIPT_ID:-}" VULTR_KEY="$KEY" python3 -c "
 import json, os, urllib.request, urllib.error
 snap = os.environ.get('V_SNAPID','').strip()
 data = {
@@ -295,8 +375,7 @@ else:
   data['script_id'] = os.environ['V_SCRIPT']
 body = json.dumps(data).encode('utf-8')
 req = urllib.request.Request(
-  'https://api.vultr.com/v2/instances',
-  data=body,
+  'https://api.vultr.com/v2/instances', data=body,
   headers={'Authorization': 'Bearer ' + os.environ['VULTR_KEY'].strip(), 'Content-Type': 'application/json'},
   method='POST'
 )
@@ -304,20 +383,28 @@ try:
   with urllib.request.urlopen(req) as r: print(r.read().decode())
 except urllib.error.HTTPError as e: print(e.read().decode())
 ")"
-  ID="$(echo "$RESP" | py 'print(d.get("instance",{}).get("id",""))')"
-  if [ -z "$ID" ]; then echo "Create failed in $r: $(echo "$RESP" | head -c 300)"; exit 1; fi
-  CREATED+=("$ID"); IDS+=("$ID")
-  echo "created $r -> $ID"
-done
+    ID="$(echo "$RESP" | py 'print(d.get("instance",{}).get("id",""))')"
+    if [ -z "$ID" ]; then echo "Create failed in $r: $(echo "$RESP" | head -c 300)"; exit 1; fi
+    CREATED+=("$ID"); IDS+=("$ID")
+    echo "created $r -> $ID"
+  done
+fi
 
 # ---- wait for IPs -----------------------------------------------------------
 IPS=()
 for i in "${!IDS[@]}"; do
   ip=""
   for t in $(seq 1 60); do
-    ip="$(api GET "/instances/${IDS[$i]}" | py 'i=d.get("instance",{})
+    if [ "$USE_DO" -eq 1 ]; then
+      ip="$(do_api GET "/droplets/${IDS[$i]}" | py 'dr=d.get("droplet",{})
+nets=dr.get("networks",{}).get("v4",[])
+pub=[n for n in nets if n.get("type")=="public"]
+print(pub[0]["ip_address"] if pub and dr.get("status")=="active" else "")')"
+    else
+      ip="$(api GET "/instances/${IDS[$i]}" | py 'i=d.get("instance",{})
 ip=i.get("main_ip","")
 print(ip if i.get("status")=="active" and i.get("power_status")=="running" and ip!="0.0.0.0" else "")')"
+    fi
     [ -n "$ip" ] && break; sleep 10
   done
   [ -n "$ip" ] || { echo "Server ${REGIONS[$i]} never became active"; exit 1; }
