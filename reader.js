@@ -186,6 +186,15 @@ async function readerRun(browser, i) {
   const willBounce = Math.random() < bouncePct;
   const bounceAfterMs = willBounce ? rand(15000, 30000) : Infinity;
 
+  // Per-reader personality — each simulated person behaves differently.
+  const readMult    = rand(0.65, 1.45);          // skim (65%) to deep-read (145%) of base time
+  const readerStay  = Math.round(stay * readMult);
+  const tabSwitchP  = rand(0.02, 0.18);          // multitasker vs. focused reader
+  const scrollUpP   = rand(0.08, 0.32);          // rarely re-reads vs. often re-reads
+  const domBonusP   = rand(0.20, 0.60);          // glances past images vs. studies them
+  const keyboardP   = rand(0.05, 0.30);          // mostly mouse vs. keyboard scroller
+  const mySelectP   = rand(0.04, 0.28);          // rarely highlights vs. frequent highlighter
+
   // Scrapfly rate-limits concurrent new sessions; stagger by index (8s apart).
   // Local browsers just need a small random jitter.
   await sleep(process.env.SCRAPFLY_API_KEY ? i * 8000 + rand(0, 1500) : rand(0, 5000));
@@ -193,11 +202,11 @@ async function readerRun(browser, i) {
   const startedAt = new Date().toISOString();
   const pos = { x: rand(200, 900), y: rand(150, 500) };
   const willClick = Math.random() < clickProb;
-  const clickAt = start + stay * rand(0.4, 0.65);
+  const clickAt = start + readerStay * rand(0.4, 0.65);
   let clicked = null, scrollUps = 0, steps = 0, textSelections = 0, status = 'ok';
   let httpStatus = null, title = null, words = null, reached = false, notReached = null;
   let bounced = false, scrolledToComments = false, secondVisit = false;
-  let readTime = stay;
+  let readTime = readerStay;
   let ctx = null, page = null;
   const secondUrl = process.env.SECOND_URL || null;
   const secondProb = parseFloat(process.env.SECOND_READ_PROB ?? '0.35');
@@ -327,11 +336,11 @@ async function readerRun(browser, i) {
     // Adjust read time based on article length (skim rate ~500 WPM = 120ms/word).
     // Clamped between 60s and the original stay time.
     if (reached && words && words > 100) {
-      readTime = Math.max(60000, Math.min(stay, words * 120));
+      readTime = Math.max(60000, Math.min(readerStay, words * 120));
     }
 
     // A person who lands on a block page leaves; do the same instead of "reading" it.
-    while (reached && Date.now() - start < readTime) {
+    while (reached && Date.now() - start < readTime) {  // eslint-disable-line no-constant-condition
       const info = await scrollInfo(page);
       const maxY = Math.max(1, info.h - info.vh);
       const progress = Math.min(1, info.y / maxY);
@@ -368,24 +377,24 @@ async function readerRun(browser, i) {
       }
 
       // Occasionally select a word or line of text before scrolling.
-      if (Math.random() < selectProb) {
+      if (Math.random() < mySelectP) {
         await selectText(page, pos);
         textSelections++;
         await sleep(rand(400, 1200));
       }
 
-      // Occasionally simulate switching to another tab and coming back (~8% per step).
-      if (Math.random() < 0.08) {
+      // Occasionally simulate switching to another tab and coming back.
+      if (Math.random() < tabSwitchP) {
         await simulateTabSwitch(page);
       }
 
       // Mostly read downward; sometimes scroll back up to re-read.
-      const goUp = info.y > 400 && Math.random() < 0.2;
+      const goUp = info.y > 400 && Math.random() < scrollUpP;
       if (goUp) {
         await smoothScroll(page, -rand(100, 320));
         scrollUps++;
-      } else if (Math.random() < 0.15) {
-        // Keyboard-based scroll instead of mouse wheel (~15% of steps).
+      } else if (Math.random() < keyboardP) {
+        // Keyboard-based scroll instead of mouse wheel.
         const key = Math.random() < 0.6 ? 'Space' : 'PageDown';
         await page.keyboard.press(key);
       } else {
@@ -396,15 +405,14 @@ async function readerRun(browser, i) {
       await moveMouse(page, pos, rand(100, 1250), rand(100, 680));
 
       // DOM-aware pause: linger longer at code blocks, images, and section headers.
-      // Only fires occasionally so it doesn't drag down the overall scroll rate.
       const vc = await viewportContent(page);
-      const domBonus = Math.random() < 0.4
+      const domBonus = Math.random() < domBonusP
         ? (vc.hasCode ? rand(1500, 3500) : vc.hasImage ? rand(1000, 2500) : vc.hasHead ? rand(500, 1500) : 0)
         : 0;
 
       const after = await scrollInfo(page);
       const p2 = Math.min(1, after.y / Math.max(1, after.h - after.vh));
-      const left = stay - (Date.now() - start);
+      const left = readTime - (Date.now() - start);
       await sleep(Math.min(pauseFor(p2) + domBonus, left));
     }
 
