@@ -378,34 +378,18 @@ async function readerRun(browser, i) {
       httpStatus = resp ? resp.status() : null;
     }
 
-    // Dismiss cookie consent and sticky banners — run twice (immediately + after 2s) because
-    // TDS/Medium banners often appear a couple of seconds after the initial page load.
-    async function dismissBanners() {
-      await page.evaluate(() => {
-        // Cookie consent: prefer reject, fall back to accept so the page isn't frozen.
-        const rejectRe = /reject all|reject cookies|decline|necessary only|accept required/i;
-        const acceptRe = /accept all|accept cookies|agree/i;
-        const closeRe  = /^close$|^dismiss$|^no thanks$/i;
-        const btns = [...document.querySelectorAll('button, [role="button"]')];
-        const reject = btns.find(b => rejectRe.test(b.innerText || b.getAttribute('aria-label') || ''));
-        if (reject) { reject.click(); }
-        else {
-          const accept = btns.find(b => acceptRe.test(b.innerText || b.getAttribute('aria-label') || ''));
-          if (accept) accept.click();
-        }
-        // Close sticky newsletter / promo bars (Medium partner bars, TDS subscription nag).
-        const close = btns.find(b =>
-          closeRe.test(b.innerText || '') ||
-          /close/i.test(b.getAttribute('aria-label') || '') ||
-          b.getAttribute('data-testid') === 'close-button'
-        );
-        if (close) close.click();
-      }).catch(() => {});
-    }
-    await dismissBanners();
-    await sleep(2000);
-    await dismissBanners(); // second pass catches banners that load after initial render
-    await sleep(rand(300, 600));
+    // Dismiss cookie consent banners — prefer reject, fall back to accept so the page
+    // isn't frozen. Only match clear consent button text to avoid accidentally clicking ads.
+    await page.evaluate(() => {
+      const rejectRe = /^reject all$|^reject cookies$|^decline$|^necessary only$|^accept required$/i;
+      const acceptRe = /^accept all$|^accept cookies$|^agree$/i;
+      const btns = [...document.querySelectorAll('button')];
+      const reject = btns.find(b => rejectRe.test((b.innerText || '').trim()));
+      if (reject) { reject.click(); return; }
+      const accept = btns.find(b => acceptRe.test((b.innerText || '').trim()));
+      if (accept) accept.click();
+    }).catch(() => {});
+    await sleep(rand(500, 1000));
 
     // SCREENSHOT=1: save a screenshot of what the browser sees at page load.
     if (process.env.SCREENSHOT) {
