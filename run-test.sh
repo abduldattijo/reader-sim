@@ -163,11 +163,11 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-# ---- preflight (read-only) --------------------------------------------------
-# SSH key only needed for VPS mode — GHA runs readers locally with no SSH
-[ "${GITHUB_ACTIONS:-}" != "true" ] && { [ -f "$KEYFILE" ] || { echo "Missing private key $KEYFILE"; exit 1; }; }
-
-if [ "$USE_DO" -eq 1 ]; then
+# ---- preflight (read-only) — entire block skipped in GitHub Actions mode -----
+# GHA runs readers locally via the block further below; no VPS checks needed.
+if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
+  : # skip all preflight — fall through to plan output then GHA block
+elif [ "$USE_DO" -eq 1 ]; then
   echo "Checking DigitalOcean account..."
   DO_SSHKEY_FP="91:02:66:94:20:7e:07:b8:f4:4b:05:90:35:d7:d7:09"  # reader-sim key
   do_api GET /account | py 'a=d.get("account")
