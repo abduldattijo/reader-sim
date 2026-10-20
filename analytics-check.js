@@ -43,15 +43,16 @@ async function scrape() {
       const passInput = page.locator('input[type="password"]').first();
       await passInput.fill(PASSWORD);
       await page.locator('button[type="submit"], input[type="submit"]').first().click();
-      await page.waitForURL('**/tds/analytics', { timeout: 20000 }).catch(async () => {
-        // Some portals redirect to dashboard first
-        await page.goto('https://write.insightmediagroup.io/tds/analytics', { waitUntil: 'networkidle', timeout: 20000 });
-      });
+      // Wait up to 30s for redirect to analytics, then navigate there manually if needed
+      await page.waitForURL('**/tds/analytics', { timeout: 30000 }).catch(() => {});
+      if (!page.url().includes('tds/analytics')) {
+        await page.goto('https://write.insightmediagroup.io/tds/analytics', { waitUntil: 'networkidle', timeout: 30000 });
+      }
     }
 
-    // Wait for the table to appear
-    await page.waitForSelector('table', { timeout: 15000 });
-    await page.waitForTimeout(1000); // let numbers load
+    // Wait for the table — portal is a SPA, data loads via XHR after mount
+    await page.waitForSelector('table', { timeout: 45000 });
+    await page.waitForTimeout(2000); // let all rows finish rendering
 
     // Scrape all rows
     const articles = await page.evaluate(() => {
