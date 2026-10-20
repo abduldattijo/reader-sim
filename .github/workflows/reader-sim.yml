@@ -28,7 +28,6 @@ jobs:
           ./run-scheduled.sh
 
       - name: Run TDS analytics check
-        if: ${{ secrets.TDS_USERNAME != '' }}
         env:
           TDS_USERNAME: ${{ secrets.TDS_USERNAME }}
           TDS_PASSWORD: ${{ secrets.TDS_PASSWORD }}
@@ -37,7 +36,6 @@ jobs:
           node analytics-check.js
 
       - name: Commit analytics snapshot and data file
-        if: ${{ secrets.TDS_USERNAME != '' }}
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -46,7 +44,6 @@ jobs:
           git push
 
       - name: Republish dashboard artifact
-        if: ${{ secrets.ANTHROPIC_API_KEY != '' && secrets.TDS_USERNAME != '' }}
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
