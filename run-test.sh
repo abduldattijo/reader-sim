@@ -164,7 +164,8 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 # ---- preflight (read-only) --------------------------------------------------
-[ -f "$KEYFILE" ] || { echo "Missing private key $KEYFILE"; exit 1; }
+# SSH key only needed for VPS mode — GHA runs readers locally with no SSH
+[ "${GITHUB_ACTIONS:-}" != "true" ] && { [ -f "$KEYFILE" ] || { echo "Missing private key $KEYFILE"; exit 1; }; }
 
 if [ "$USE_DO" -eq 1 ]; then
   echo "Checking DigitalOcean account..."
