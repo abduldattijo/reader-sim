@@ -34,6 +34,7 @@ async function scrape() {
   try {
     // Go straight to analytics — portal will redirect to login if needed
     await page.goto('https://write.insightmediagroup.io/tds/analytics', { waitUntil: 'networkidle', timeout: 30000 });
+    console.log('After initial goto:', page.url());
 
     // Handle login redirect
     if (page.url().includes('login') || page.url().includes('signin') || page.url().includes('auth')) {
@@ -46,20 +47,26 @@ async function scrape() {
       // Wait up to 30s for redirect to analytics, then navigate there manually if needed
       await page.waitForURL('**/tds/analytics', { timeout: 30000 }).catch(() => {});
       if (!page.url().includes('tds/analytics')) {
+        console.log('Post-login URL:', page.url(), '— navigating to analytics manually');
         await page.goto('https://write.insightmediagroup.io/tds/analytics', { waitUntil: 'networkidle', timeout: 30000 });
       }
+      console.log('On analytics page:', page.url());
     }
 
-    // Wait for the table — portal is a SPA, data loads via XHR after mount
-    await page.waitForSelector('table', { timeout: 45000 });
+    // Wait for data table — portal is a SPA, rows load via XHR after mount.
+    // Try <table> first; some portal versions use a div-based grid.
+    const tableSelector = 'table, [role="grid"], [role="table"]';
+    console.log('Waiting for table selector...');
+    await page.waitForSelector(tableSelector, { timeout: 60000 });
     await page.waitForTimeout(2000); // let all rows finish rendering
+    console.log('Table found. Scraping...');
 
     // Scrape all rows
     const articles = await page.evaluate(() => {
       const rows = [];
-      const trs = document.querySelectorAll('tbody tr, table tr');
+      const trs = document.querySelectorAll('tbody tr, table tr, [role="row"]');
       for (const tr of trs) {
-        const tds = Array.from(tr.querySelectorAll('td'));
+        const tds = Array.from(tr.querySelectorAll('td, [role="cell"], [role="gridcell"]'));
         if (tds.length < 4) continue;
 
         // Title + URL from the link in the first cell
@@ -90,6 +97,16 @@ async function scrape() {
     });
 
     return articles;
+  } catch (err) {
+    try {
+      await page.screenshot({ path: 'analytics-debug.png', fullPage: true });
+      console.error('DEBUG URL:', page.url());
+      console.error('DEBUG title:', await page.title());
+      // Dump a snippet of the page HTML so we can see what elements exist
+      const bodyHtml = await page.evaluate(() => document.body.innerHTML.slice(0, 3000));
+      console.error('DEBUG body HTML (first 3000 chars):\n', bodyHtml);
+    } catch {}
+    throw err;
   } finally {
     await browser.close();
   }
