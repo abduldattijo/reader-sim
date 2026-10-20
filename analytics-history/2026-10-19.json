@@ -7,7 +7,9 @@
       "pageviews": 271,
       "engagedViews": 124,
       "engagedViews30d": 124,
-      "payout": "--"
+      "payout": "--",
+      "slug": "",
+      "url": ""
     },
     {
       "title": "I Tried to Fool an AI Image Evaluator. It Fooled Me Back.",
@@ -15,7 +17,9 @@
       "pageviews": 285,
       "engagedViews": 135,
       "engagedViews30d": 135,
-      "payout": "--"
+      "payout": "--",
+      "slug": "",
+      "url": ""
     },
     {
       "title": "The biggest savings in My Apartment Search Agent Came From Plain Code, not a Cheaper model.",
@@ -31,7 +35,9 @@
       "pageviews": 1385,
       "engagedViews": 549,
       "engagedViews30d": 549,
-      "payout": "$100.00"
+      "payout": "$100.00",
+      "slug": "",
+      "url": ""
     },
     {
       "title": "One Capital Letter Was Silently Breaking My AI Support Bot",
@@ -39,7 +45,9 @@
       "pageviews": 476,
       "engagedViews": 196,
       "engagedViews30d": 194,
-      "payout": "--"
+      "payout": "--",
+      "slug": "",
+      "url": ""
     },
     {
       "title": "My Model Was Cheating on Its Own Test",
@@ -47,7 +55,9 @@
       "pageviews": 924,
       "engagedViews": 365,
       "engagedViews30d": 359,
-      "payout": "--"
+      "payout": "--",
+      "slug": "",
+      "url": ""
     },
     {
       "title": "How to Place Vertiport Locations in Any City Using Geospatial Machine Learning",
@@ -55,15 +65,19 @@
       "pageviews": 524,
       "engagedViews": 239,
       "engagedViews30d": 217,
-      "payout": "--"
+      "payout": "--",
+      "slug": "",
+      "url": ""
     },
     {
-      "title": "I Built a Tool-Calling Agent in Python. Here’s How I Debugged It",
+      "title": "I Built a Tool-Calling Agent in Python. Here\u2019s How I Debugged It",
       "published": "Aug 6, 2026",
       "pageviews": 3603,
       "engagedViews": 1049,
       "engagedViews30d": 1011,
-      "payout": "$100.00"
+      "payout": "$100.00",
+      "slug": "",
+      "url": ""
     },
     {
       "title": "How to Debug AI Coding Agents When They Change the Wrong Thing",
@@ -71,7 +85,9 @@
       "pageviews": 878,
       "engagedViews": 301,
       "engagedViews30d": 285,
-      "payout": "--"
+      "payout": "--",
+      "slug": "",
+      "url": ""
     },
     {
       "title": "How I Reproduced BM25, Dense Retrieval, and SPLADE on a 16GB MacBook",
@@ -79,7 +95,9 @@
       "pageviews": 934,
       "engagedViews": 329,
       "engagedViews30d": 290,
-      "payout": "--"
+      "payout": "--",
+      "slug": "",
+      "url": ""
     },
     {
       "title": "I Fine-Tuned OpenVLA-7B with LoRA on Google Colab: What Worked and What 100 Steps Proved",
@@ -87,7 +105,9 @@
       "pageviews": 656,
       "engagedViews": 255,
       "engagedViews30d": 215,
-      "payout": "--"
+      "payout": "--",
+      "slug": "",
+      "url": ""
     },
     {
       "title": "My Vibe-Coded App Worked Until I Tested 1,000 Users",
@@ -95,7 +115,9 @@
       "pageviews": 2,
       "engagedViews": 2,
       "engagedViews30d": 0,
-      "payout": "--"
+      "payout": "--",
+      "slug": "",
+      "url": ""
     }
   ]
 }

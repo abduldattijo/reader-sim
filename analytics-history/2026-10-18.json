@@ -7,7 +7,9 @@
       "pageviews": 247,
       "engagedViews": 115,
       "engagedViews30d": 115,
-      "payout": "--"
+      "payout": "--",
+      "slug": "",
+      "url": ""
     },
     {
       "title": "I Built a Trap for AI Image Judges. They Walked Into a Different One.",
@@ -31,7 +33,9 @@
       "pageviews": 1379,
       "engagedViews": 547,
       "engagedViews30d": 547,
-      "payout": "$100.00"
+      "payout": "$100.00",
+      "slug": "",
+      "url": ""
     },
     {
       "title": "One Capital Letter Was Silently Breaking My AI Support Bot",
@@ -39,7 +43,9 @@
       "pageviews": 475,
       "engagedViews": 196,
       "engagedViews30d": 194,
-      "payout": "--"
+      "payout": "--",
+      "slug": "",
+      "url": ""
     },
     {
       "title": "My Model Was Cheating on Its Own Test",
@@ -47,7 +53,9 @@
       "pageviews": 924,
       "engagedViews": 365,
       "engagedViews30d": 359,
-      "payout": "--"
+      "payout": "--",
+      "slug": "",
+      "url": ""
     },
     {
       "title": "How to Place Vertiport Locations in Any City Using Geospatial Machine Learning",
@@ -55,15 +63,19 @@
       "pageviews": 524,
       "engagedViews": 239,
       "engagedViews30d": 217,
-      "payout": "--"
+      "payout": "--",
+      "slug": "",
+      "url": ""
     },
     {
-      "title": "I Built a Tool-Calling Agent in Python. Here’s How I Debugged It",
+      "title": "I Built a Tool-Calling Agent in Python. Here\u2019s How I Debugged It",
       "published": "Aug 6, 2026",
       "pageviews": 3602,
       "engagedViews": 1049,
       "engagedViews30d": 1011,
-      "payout": "$100.00"
+      "payout": "$100.00",
+      "slug": "",
+      "url": ""
     },
     {
       "title": "How to Debug AI Coding Agents When They Change the Wrong Thing",
@@ -71,7 +83,9 @@
       "pageviews": 876,
       "engagedViews": 300,
       "engagedViews30d": 285,
-      "payout": "--"
+      "payout": "--",
+      "slug": "",
+      "url": ""
     },
     {
       "title": "How I Reproduced BM25, Dense Retrieval, and SPLADE on a 16GB MacBook",
@@ -79,7 +93,9 @@
       "pageviews": 933,
       "engagedViews": 328,
       "engagedViews30d": 290,
-      "payout": "--"
+      "payout": "--",
+      "slug": "",
+      "url": ""
     },
     {
       "title": "I Fine-Tuned OpenVLA-7B with LoRA on Google Colab: What Worked and What 100 Steps Proved",
@@ -87,7 +103,9 @@
       "pageviews": 655,
       "engagedViews": 255,
       "engagedViews30d": 215,
-      "payout": "--"
+      "payout": "--",
+      "slug": "",
+      "url": ""
     },
     {
       "title": "My Vibe-Coded App Worked Until I Tested 1,000 Users",
@@ -95,7 +113,9 @@
       "pageviews": 2,
       "engagedViews": 2,
       "engagedViews30d": 0,
-      "payout": "--"
+      "payout": "--",
+      "slug": "",
+      "url": ""
     }
   ]
 }

@@ -61,16 +61,23 @@ async function scrape() {
         const tds = Array.from(tr.querySelectorAll('td'));
         if (tds.length < 4) continue;
 
-        // Title is in first cell — grab the first text block that looks like a title
-        const titleEl = tds[0].querySelector('p, span, a, h3, h4') || tds[0];
-        const title = titleEl.textContent.trim().split('\n')[0].trim();
+        // Title + URL from the link in the first cell
+        const linkEl  = tds[0].querySelector('a[href]');
+        const titleEl = linkEl || tds[0].querySelector('p, span, h3, h4') || tds[0];
+        const title   = titleEl.textContent.trim().split('\n')[0].trim();
         if (!title || title.length < 5) continue;
+
+        // Extract the stable story slug (last path segment of the URL)
+        const href    = linkEl?.href || '';
+        const slug    = href ? href.replace(/\/$/, '').split('/').pop() : '';
 
         const num = (s) => parseInt((s || '').replace(/[^0-9]/g, '')) || 0;
         const str = (el) => (el || { textContent: '--' }).textContent.trim();
 
         rows.push({
           title,
+          slug,                          // stable Medium story ID — survives title renames
+          url: href,
           published:       str(tds[1]),
           pageviews:       num(str(tds[2])),
           engagedViews:    num(str(tds[3])),
@@ -119,10 +126,15 @@ function delta(now, prev) {
   saveHistory(today, articles);
   const prev = loadHistory(yesterday);
 
+  // Match helper: slug first (survives title renames), fall back to exact title
+  const match = (prev, a) => prev?.find(r =>
+    (a.slug && r.slug && a.slug === r.slug) || r.title === a.title
+  );
+
   // Print to console
   console.log(`\nFound ${articles.length} articles\n`);
   for (const a of articles) {
-    const p = prev?.find(r => r.title === a.title);
+    const p = match(prev, a);
     console.log(`${a.title.slice(0, 55).padEnd(55)} | 30D: ${fmt(a.engagedViews30d).padStart(5)} | Δ: ${delta(a.engagedViews30d, p?.engagedViews30d)}`);
   }
 
@@ -144,7 +156,7 @@ function delta(now, prev) {
   ];
 
   for (const a of articles) {
-    const p   = prev?.find(r => r.title === a.title);
+    const p   = match(prev, a);
     const d   = delta(a.engagedViews30d, p?.engagedViews30d);
     const t   = a.title.length > 50 ? a.title.slice(0, 47) + '…' : a.title;
     lines.push(`| ${t} | ${a.published} | ${fmt(a.pageviews)} | ${fmt(a.engagedViews)} | ${fmt(a.engagedViews30d)} | ${d} | ${a.payout} |`);
