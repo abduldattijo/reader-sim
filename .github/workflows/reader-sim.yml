@@ -26,3 +26,29 @@ jobs:
         run: |
           chmod +x run-scheduled.sh run-test.sh
           ./run-scheduled.sh
+
+      - name: Run TDS analytics check
+        if: ${{ secrets.TDS_USERNAME != '' }}
+        env:
+          TDS_USERNAME: ${{ secrets.TDS_USERNAME }}
+          TDS_PASSWORD: ${{ secrets.TDS_PASSWORD }}
+        run: |
+          npx playwright install --with-deps chromium 2>/dev/null | tail -3
+          node analytics-check.js
+
+      - name: Commit analytics snapshot and data file
+        if: ${{ secrets.TDS_USERNAME != '' }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add analytics-history/ analytics-data.json
+          git diff --cached --quiet || git commit -m "analytics: snapshot $(date -u +%Y-%m-%d)"
+          git push
+
+      - name: Republish dashboard artifact
+        if: ${{ secrets.ANTHROPIC_API_KEY != '' && secrets.TDS_USERNAME != '' }}
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          npx --yes @anthropic-ai/claude-code@latest --print \
+            "Publish analytics-data.json (in the current directory) to the TDS analytics artifact at https://claude.ai/artifact/LyFB8MmtH5kpRwt9aSE1xL alongside the existing page (file_path: analytics-data.json, url: https://claude.ai/artifact/LyFB8MmtH5kpRwt9aSE1xL). Do only this one action."

@@ -105,6 +105,21 @@ function saveHistory(date, articles) {
   fs.writeFileSync(path.join(HISTORY_DIR, `${date}.json`), JSON.stringify({ date, articles }, null, 2));
 }
 
+function saveDataFile(date) {
+  // Rebuild analytics-data.json from all history snapshots so the dashboard artifact stays current.
+  const snapshotFiles = fs.readdirSync(HISTORY_DIR).filter(f => f.endsWith('.json')).sort();
+  const snapshots = {};
+  for (const f of snapshotFiles) {
+    try {
+      const d = JSON.parse(fs.readFileSync(path.join(HISTORY_DIR, f), 'utf8'));
+      snapshots[d.date] = d.articles;
+    } catch {}
+  }
+  const dataPath = path.join(__dirname, 'analytics-data.json');
+  fs.writeFileSync(dataPath, JSON.stringify({ generated: date, snapshots }, null, 2));
+  console.log(`Dashboard data file updated: analytics-data.json (${snapshotFiles.length} snapshots)`);
+}
+
 function fmt(n) { return n.toLocaleString('en-US'); }
 function delta(now, prev) {
   if (prev === undefined || prev === null) return '—';
@@ -170,4 +185,6 @@ function delta(now, prev) {
   console.log('\n--- GitHub Summary ---\n' + md);
 
   if (SUMMARY) fs.appendFileSync(SUMMARY, md + '\n');
+
+  saveDataFile(today);
 })();
