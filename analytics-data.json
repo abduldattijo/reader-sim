@@ -69,7 +69,7 @@
         "url": ""
       },
       {
-        "title": "I Built a Tool-Calling Agent in Python. Here\u2019s How I Debugged It",
+        "title": "I Built a Tool-Calling Agent in Python. Here’s How I Debugged It",
         "published": "Aug 6, 2026",
         "pageviews": 3603,
         "engagedViews": 1049,
@@ -187,7 +187,7 @@
         "url": ""
       },
       {
-        "title": "I Built a Tool-Calling Agent in Python. Here\u2019s How I Debugged It",
+        "title": "I Built a Tool-Calling Agent in Python. Here’s How I Debugged It",
         "published": "Aug 6, 2026",
         "pageviews": 3602,
         "engagedViews": 1049,
@@ -307,7 +307,7 @@
         "url": ""
       },
       {
-        "title": "I Built a Tool-Calling Agent in Python. Here\u2019s How I Debugged It",
+        "title": "I Built a Tool-Calling Agent in Python. Here’s How I Debugged It",
         "published": "Aug 6, 2026",
         "pageviews": 3603,
         "engagedViews": 1049,
@@ -360,6 +360,8 @@
     "2026-10-20": [
       {
         "title": "I Tested Four Ways to Give an AI Assistant a Memory. The Obvious One Was the Worst Value.",
+        "slug": "6ac89409311616880a8d4f02",
+        "url": "https://write.insightmediagroup.io/tds/articles/6ac89409311616880a8d4f02",
         "published": "Oct 15, 2026",
         "pageviews": 332,
         "engagedViews": 150,
@@ -368,6 +370,8 @@
       },
       {
         "title": "I Tried to Fool an AI Image Evaluator. It Fooled Me Back.",
+        "slug": "6ac3e1fc7722106e3c098b77",
+        "url": "https://write.insightmediagroup.io/tds/articles/6ac3e1fc7722106e3c098b77",
         "published": "Oct 12, 2026",
         "pageviews": 315,
         "engagedViews": 144,
@@ -376,6 +380,8 @@
       },
       {
         "title": "I Cut My AI Agent's API Costs in Half. The Fix Had Nothing to Do with the Model.",
+        "slug": "6ab8e45894254ea6b1904332",
+        "url": "https://write.insightmediagroup.io/tds/articles/6ab8e45894254ea6b1904332",
         "published": "Oct 1, 2026",
         "pageviews": 544,
         "engagedViews": 264,
@@ -384,6 +390,8 @@
       },
       {
         "title": "AI Slop Is Already in Your Training Dataset. I Tested Three Ways to Spot It.",
+        "slug": "6aa7ee4463d98b6b78596c4d",
+        "url": "https://write.insightmediagroup.io/tds/articles/6aa7ee4463d98b6b78596c4d",
         "published": "Sep 26, 2026",
         "pageviews": 1401,
         "engagedViews": 555,
@@ -392,6 +400,8 @@
       },
       {
         "title": "One Capital Letter Was Silently Breaking My AI Support Bot",
+        "slug": "6aa068fe75cc942492b12bc3",
+        "url": "https://write.insightmediagroup.io/tds/articles/6aa068fe75cc942492b12bc3",
         "published": "Sep 12, 2026",
         "pageviews": 477,
         "engagedViews": 196,
@@ -400,6 +410,8 @@
       },
       {
         "title": "My Model Was Cheating on Its Own Test",
+        "slug": "6a7c778d77842e24ba5f225c",
+        "url": "https://write.insightmediagroup.io/tds/articles/6a7c778d77842e24ba5f225c",
         "published": "Aug 14, 2026",
         "pageviews": 924,
         "engagedViews": 365,
@@ -408,6 +420,8 @@
       },
       {
         "title": "How to Place Vertiport Locations in Any City Using Geospatial Machine Learning",
+        "slug": "6a7b1743af24f0891373cd87",
+        "url": "https://write.insightmediagroup.io/tds/articles/6a7b1743af24f0891373cd87",
         "published": "Aug 12, 2026",
         "pageviews": 524,
         "engagedViews": 239,
@@ -415,7 +429,9 @@
         "payout": "--"
       },
       {
-        "title": "I Built a Tool-Calling Agent in Python. Here\u2019s How I Debugged It",
+        "title": "I Built a Tool-Calling Agent in Python. Here’s How I Debugged It",
+        "slug": "6a7b1743af24f0891373cd80",
+        "url": "https://write.insightmediagroup.io/tds/articles/6a7b1743af24f0891373cd80",
         "published": "Aug 6, 2026",
         "pageviews": 3605,
         "engagedViews": 1050,
@@ -424,6 +440,8 @@
       },
       {
         "title": "How to Debug AI Coding Agents When They Change the Wrong Thing",
+        "slug": "6a7b1743af24f0891373cd6b",
+        "url": "https://write.insightmediagroup.io/tds/articles/6a7b1743af24f0891373cd6b",
         "published": "Jul 31, 2026",
         "pageviews": 879,
         "engagedViews": 302,
@@ -432,6 +450,8 @@
       },
       {
         "title": "How I Reproduced BM25, Dense Retrieval, and SPLADE on a 16GB MacBook",
+        "slug": "6a7b1743af24f0891373cd55",
+        "url": "https://write.insightmediagroup.io/tds/articles/6a7b1743af24f0891373cd55",
         "published": "Jul 27, 2026",
         "pageviews": 935,
         "engagedViews": 329,
@@ -440,6 +460,8 @@
       },
       {
         "title": "I Fine-Tuned OpenVLA-7B with LoRA on Google Colab: What Worked and What 100 Steps Proved",
+        "slug": "6a593fc31ebddc7debcc030d",
+        "url": "https://write.insightmediagroup.io/tds/articles/6a593fc31ebddc7debcc030d",
         "published": "Jul 21, 2026",
         "pageviews": 657,
         "engagedViews": 257,
@@ -448,6 +470,8 @@
       },
       {
         "title": "My Vibe-Coded App Worked Until I Tested 1,000 Users",
+        "slug": "6a8c360499fcf8214dbda5a1",
+        "url": "https://write.insightmediagroup.io/tds/articles/6a8c360499fcf8214dbda5a1",
         "published": "--",
         "pageviews": 2,
         "engagedViews": 2,
