@@ -62,8 +62,8 @@ KEY="${VULTR_API_KEY:-}"
 if [ -z "$KEY" ] && [ -f "$SECRETS" ]; then
   KEY="$(grep -i '^vultr api key:' "$SECRETS" | head -1 | sed -E 's/^[^:]*:[[:space:]]*//' | tr -d '[:space:]')"
 fi
-# Vultr key only required when not using DigitalOcean
-[ "$USE_DO" -eq 0 ] && [ -z "$KEY" ] && { echo "No Vultr API key found (set VULTR_API_KEY or DO_API_KEY)"; exit 1; }
+# Vultr key only required when not using DigitalOcean and not running in GitHub Actions
+[ "$USE_DO" -eq 0 ] && [ "${GITHUB_ACTIONS:-}" != "true" ] && [ -z "$KEY" ] && { echo "No Vultr API key found (set VULTR_API_KEY or DO_API_KEY)"; exit 1; }
 
 # DigitalOcean region mapping: fra→fra1, ewr→nyc1
 do_region() { case "$1" in fra) echo fra1;; ewr) echo sfo3;; sgp) echo sgp1;; lax) echo sfo3;; ams) echo ams3;; *) echo sfo3;; esac; }
