@@ -31,7 +31,12 @@ if echo "$URL" | grep -qE '(linkedin\.com|lnkd\.in|twitter\.com|x\.com)'; then
   SOCIAL_MODE=1
 fi
 
-REGIONS=(fra ewr)     # Frankfurt, New Jersey — 2 regions to stay within Scrapfly 200k/month limit
+# Allow PROMO_REGIONS env var to override (e.g. "fra ewr sgp ams tor" for 5-region promotion runs)
+if [ -n "${PROMO_REGIONS:-}" ]; then
+  read -ra REGIONS <<< "$PROMO_REGIONS"
+else
+  REGIONS=(fra ewr)   # Frankfurt, New Jersey — default 2 regions (Scrapfly 200k/month limit)
+fi
 LABEL_PREFIX="reader-run"         # ONLY droplets/servers with this name prefix are ever created or destroyed
 KEYFILE="$HOME/.ssh/vultr_reader_ed25519"
 SECRETS="$HERE/../local-secrets/api keys.md"
@@ -66,10 +71,10 @@ fi
 [ "$USE_DO" -eq 0 ] && [ "${GITHUB_ACTIONS:-}" != "true" ] && [ -z "$KEY" ] && { echo "No Vultr API key found (set VULTR_API_KEY or DO_API_KEY)"; exit 1; }
 
 # DigitalOcean region mapping: fra→fra1, ewr→nyc1
-do_region() { case "$1" in fra) echo fra1;; ewr) echo sfo3;; sgp) echo sgp1;; lax) echo sfo3;; ams) echo ams3;; *) echo sfo3;; esac; }
+do_region() { case "$1" in fra) echo fra1;; ewr) echo sfo3;; sgp) echo sgp1;; lax) echo sfo3;; ams) echo ams3;; tor) echo tor1;; lon) echo lon1;; *) echo sfo3;; esac; }
 
 # ---- optional DataImpulse proxy (credentials never printed) ----------------------
-cc_for() { case "$1" in fra) echo de;; ewr) echo us;; sgp) echo sg;; lax) echo us;; ams) echo nl;; *) echo us;; esac; }
+cc_for() { case "$1" in fra) echo de;; ewr) echo us;; sgp) echo sg;; lax) echo us;; ams) echo nl;; tor) echo ca;; lon) echo gb;; *) echo us;; esac; }
 PROXY_ON=0
 PROXY_PROVIDER="${PROXY_PROVIDER:-dataimpulse}"   # dataimpulse | decodo
 if [ "${USE_PROXY:-0}" = "1" ]; then

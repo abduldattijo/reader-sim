@@ -1,0 +1,30 @@
+name: promo-run
+
+on:
+  workflow_dispatch:   # trigger manually from GitHub Actions twice, ~1 hour apart
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90   # 5 regions × 10 readers × 300s = ~50 min; 90 min gives headroom
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run 50 promotion readers
+        env:
+          SCRAPFLY_API_KEY: ${{ secrets.SCRAPFLY_API_KEY }}
+        run: |
+          chmod +x run-promo.sh run-test.sh
+          ./run-promo.sh
