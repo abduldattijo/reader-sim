@@ -39,7 +39,7 @@ py() { python3 -c "import sys,json
 d=json.load(sys.stdin)
 $1"; }
 
-SSHO=(-i "$KEYFILE" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o PasswordAuthentication=no -o ConnectTimeout=10 -o LogLevel=ERROR)
+SSHO=(-i "$KEYFILE" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o PasswordAuthentication=no -o ConnectTimeout=10 -o LogLevel=ERROR -o ServerAliveInterval=30 -o ServerAliveCountMax=20)
 
 # ---- preflight ---------------------------------------------------------------
 echo "Looking up Vultr resources..."
@@ -116,7 +116,7 @@ echo "  IP: $IP"
 echo "Waiting for startup script (up to ${MAX_WAIT}s)..."
 WAIT_START=$(date +%s); LAST_PRINT=0
 while true; do
-  STATE="$(ssh "${SSHO[@]}" root@"$IP" 'test -f /root/READY && echo READY || echo NOTREADY' 2>/dev/null)"
+  STATE="$(ssh "${SSHO[@]}" root@"$IP" 'test -f /root/READY && echo READY || echo NOTREADY' 2>/dev/null || true)"
   ELAPSED=$(( $(date +%s) - WAIT_START ))
   if [ "$STATE" = "READY" ]; then
     echo "  ready after ${ELAPSED}s"

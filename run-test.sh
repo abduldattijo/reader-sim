@@ -66,7 +66,7 @@ fi
 [ "$USE_DO" -eq 0 ] && [ -z "$KEY" ] && { echo "No Vultr API key found (set VULTR_API_KEY or DO_API_KEY)"; exit 1; }
 
 # DigitalOcean region mapping: fra→fra1, ewr→nyc1
-do_region() { case "$1" in fra) echo fra1;; ewr) echo nyc3;; sgp) echo sgp1;; lax) echo sfo3;; ams) echo ams3;; *) echo nyc3;; esac; }
+do_region() { case "$1" in fra) echo fra1;; ewr) echo sfo3;; sgp) echo sgp1;; lax) echo sfo3;; ams) echo ams3;; *) echo sfo3;; esac; }
 
 # ---- optional DataImpulse proxy (credentials never printed) ----------------------
 cc_for() { case "$1" in fra) echo de;; ewr) echo us;; sgp) echo sg;; lax) echo us;; ams) echo nl;; *) echo us;; esac; }
@@ -323,7 +323,7 @@ IDS=()
 
 if [ "$USE_DO" -eq 1 ]; then
   CLOUD_INIT="$(cat "$HERE/cloud-init.sh")"
-  DO_SIZE="s-1vcpu-2gb-intel"  # 2 GB RAM — available in fra1 and nyc3
+  DO_SIZE="s-1vcpu-2gb-intel"  # 2 GB RAM — available in fra1 and sfo3
   for r in "${REGIONS[@]}"; do
     RESP="$(V_NAME="$LABEL_PREFIX-$r-$RUNID" V_REGION="$(do_region "$r")" V_SIZE="$DO_SIZE" V_SSHKEY="$DO_SSHKEY_FP" DO_KEY="$DO_KEY" python3 -c "
 import json, os, urllib.request, urllib.error
@@ -412,7 +412,7 @@ print(ip if i.get("status")=="active" and i.get("power_status")=="running" and i
 done
 
 # ---- wait for startup script ------------------------------------------------
-SSHO=(-i "$KEYFILE" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o PasswordAuthentication=no -o ConnectTimeout=10 -o LogLevel=ERROR)
+SSHO=(-i "$KEYFILE" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o PasswordAuthentication=no -o ConnectTimeout=10 -o LogLevel=ERROR -o ServerAliveInterval=30 -o ServerAliveCountMax=20)
 echo "Waiting for startup scripts (about 5-8 minutes). A progress line prints every 30 seconds."
 READY_FLAG=(); for i in "${!IPS[@]}"; do READY_FLAG+=(0); done
 WAIT_START=$(date +%s); LAST_PRINT=0
