@@ -4,7 +4,25 @@ on:
   workflow_dispatch:  # triggered by cron-job.org every day at 20:00 Lagos time (19:00 UTC)
 
 jobs:
+  check-day:
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.day_check.outputs.should_run }}
+    steps:
+      - id: day_check
+        run: |
+          DAY=$(date +%u)  # 1=Mon 2=Tue 3=Wed 4=Thu 5=Fri 6=Sat 7=Sun
+          if [[ "$DAY" == "1" || "$DAY" == "3" || "$DAY" == "5" ]]; then
+            echo "should_run=true"  >> $GITHUB_OUTPUT
+            echo "Today is Mon/Wed/Fri — running."
+          else
+            echo "should_run=false" >> $GITHUB_OUTPUT
+            echo "Today is not a run day — skipping."
+          fi
+
   run:
+    needs: check-day
+    if: needs.check-day.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
