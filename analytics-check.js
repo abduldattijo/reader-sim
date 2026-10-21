@@ -133,9 +133,31 @@ function saveDataFile(date) {
       snapshots[d.date] = d.articles;
     } catch {}
   }
+  const data = { generated: date, snapshots };
   const dataPath = path.join(__dirname, 'analytics-data.json');
-  fs.writeFileSync(dataPath, JSON.stringify({ generated: date, snapshots }, null, 2));
+  fs.writeFileSync(dataPath, JSON.stringify(data, null, 2));
   console.log(`Dashboard data file updated: analytics-data.json (${snapshotFiles.length} snapshots)`);
+  return data;
+}
+
+function generateDashboard(data) {
+  // Produce a self-contained dashboard.html with analytics data inlined as a JS variable,
+  // so the GHA "Republish" step only needs to publish one HTML file (no separate fetch()).
+  const templatePath = path.join(__dirname, 'dashboard-template.html');
+  if (!fs.existsSync(templatePath)) { console.log('dashboard-template.html not found, skipping'); return; }
+  const template = fs.readFileSync(templatePath, 'utf8');
+  const standalone = template.replace(
+    `// Load data from companion file (published alongside this artifact)
+fetch('./analytics-data.json')
+  .then(r=>{ if(!r.ok) throw new Error(r.status); return r.json(); })
+  .then(render)
+  .catch(err=>{
+    document.getElementById('loading').textContent = 'Could not load analytics-data.json · ' + err.message;
+  });`,
+    `render(${JSON.stringify(data)});`
+  );
+  fs.writeFileSync(path.join(__dirname, 'dashboard.html'), standalone);
+  console.log('Self-contained dashboard.html generated');
 }
 
 function fmt(n) { return n.toLocaleString('en-US'); }
@@ -157,6 +179,8 @@ function delta(now, prev) {
   }
 
   saveHistory(today, articles);
+  const data = saveDataFile(today);
+  generateDashboard(data);
   const prev = loadHistory(yesterday);
 
   // Match helper: slug first (survives title renames), fall back to exact title
@@ -205,6 +229,4 @@ function delta(now, prev) {
   console.log('\n--- GitHub Summary ---\n' + md);
 
   if (SUMMARY) fs.appendFileSync(SUMMARY, md + '\n');
-
-  saveDataFile(today);
 })();

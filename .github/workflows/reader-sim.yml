@@ -58,4 +58,4 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           npx --yes @anthropic-ai/claude-code@latest --print \
-            "Publish analytics-data.json (in the current directory) to the TDS analytics artifact at https://claude.ai/artifact/LyFB8MmtH5kpRwt9aSE1xL alongside the existing page (file_path: analytics-data.json, url: https://claude.ai/artifact/LyFB8MmtH5kpRwt9aSE1xL). Do only this one action."
+            "Publish dashboard.html (in the current directory) to the TDS analytics artifact at https://claude.ai/artifact/LyFB8MmtH5kpRwt9aSE1xL. Use file_path: dashboard.html and url: https://claude.ai/artifact/LyFB8MmtH5kpRwt9aSE1xL. Do only this one action."
