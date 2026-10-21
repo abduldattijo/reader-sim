@@ -181,6 +181,8 @@ function delta(now, prev) {
   const lines = [
     `## 📊 TDS Analytics — ${today}`,
     '',
+    `**[→ Open Live Dashboard](https://claude.ai/artifact/LyFB8MmtH5kpRwt9aSE1xL)** · charts, projections, 30-day window tracker`,
+    '',
     `**Total engaged views (all time):** ${fmt(totalEngaged)}  `,
     `**Total engaged views (30D):** ${fmt(total30d)} (${totalDeltaStr} vs yesterday's snapshot)`,
     '',
