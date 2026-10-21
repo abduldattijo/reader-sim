@@ -29,10 +29,17 @@ jobs:
           TDS_PASSWORD: ${{ secrets.TDS_PASSWORD }}
         run: node analytics-check.js
 
-      - name: Commit history snapshot
+      - name: Commit snapshot and data file
         run: |
           git config user.email "actions@github.com"
           git config user.name "GitHub Actions"
-          git add analytics-history/
+          git add analytics-history/ analytics-data.json
           git diff --staged --quiet || git commit -m "analytics: $(date -u +%Y-%m-%d) snapshot"
           git push
+
+      - name: Republish dashboard artifact
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          npx --yes @anthropic-ai/claude-code@latest --print \
+            "Publish dashboard.html (in the current directory) to the TDS analytics artifact at https://claude.ai/artifact/LyFB8MmtH5kpRwt9aSE1xL. Use file_path: dashboard.html and url: https://claude.ai/artifact/LyFB8MmtH5kpRwt9aSE1xL. Do only this one action."
