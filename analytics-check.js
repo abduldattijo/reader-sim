@@ -207,7 +207,7 @@ function delta(now, prev) {
   const lines = [
     `## 📊 TDS Analytics — ${today}`,
     '',
-    `**[→ Open Live Dashboard](https://tds-analytics.netlify.app)** · charts, projections, 30-day window tracker`,
+    `**[→ Open Live Dashboard](https://vermillion-alpaca-d5d1ea.netlify.app)** · charts, projections, 30-day window tracker`,
     '',
     `**Total engaged views (all time):** ${fmt(totalEngaged)}  `,
     `**Total engaged views (30D):** ${fmt(total30d)} (${totalDeltaStr} vs yesterday's snapshot)`,
