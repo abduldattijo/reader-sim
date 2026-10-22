@@ -9,7 +9,9 @@
 //   HISTORY_DIR    — directory to store daily JSON snapshots (default: ./analytics-history)
 //   GITHUB_STEP_SUMMARY — set automatically by GitHub Actions
 
-const { chromium } = require('playwright');
+const { chromium } = require('playwright-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+chromium.use(StealthPlugin());
 const fs   = require('fs');
 const path = require('path');
 
