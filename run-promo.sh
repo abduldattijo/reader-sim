@@ -10,7 +10,7 @@
 export PROMO_REGIONS="fra ewr sgp ams tor"
 export MOBILE_PCT=0.33   # ~1 in 3 readers uses a mobile viewport
 
-ARTICLE="https://towardsdatascience.com/i-tested-four-ways-to-give-an-ai-assistant-a-memory-the-obvious-one-was-the-worst-value/"
+ARTICLE="https://towardsdatascience.com/can-an-apartment-search-agent-call-the-model-fewer-times-and-still-find-good-matches/"
 ROUNDS=10
 HERE="$(cd "$(dirname "$0")" && pwd)"
 
