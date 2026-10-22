@@ -37,9 +37,16 @@ jobs:
           git diff --staged --quiet || git commit -m "analytics: $(date -u +%Y-%m-%d) snapshot"
           git push
 
-      - name: Republish dashboard artifact
+      - name: Deploy dashboard to Netlify
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
         run: |
-          npx --yes @anthropic-ai/claude-code@latest --print \
-            "Publish dashboard.html (in the current directory) to the TDS analytics artifact at https://claude.ai/artifact/LyFB8MmtH5kpRwt9aSE1xL. Use file_path: dashboard.html and url: https://claude.ai/artifact/LyFB8MmtH5kpRwt9aSE1xL. Do only this one action."
+          mkdir /tmp/netlify-deploy
+          cp dashboard.html /tmp/netlify-deploy/index.html
+          npx --yes netlify-cli deploy \
+            --dir=/tmp/netlify-deploy \
+            --prod \
+            --site=$NETLIFY_SITE_ID \
+            --auth=$NETLIFY_AUTH_TOKEN \
+            --message="analytics: $(date -u +%Y-%m-%d)"
