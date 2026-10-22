@@ -1,0 +1,302 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>TDS Analytics</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+<style>
+:root {
+  --bg:      #0c0e14;
+  --surface: #13161f;
+  --border:  #1e2235;
+  --fg:      #e0e4f0;
+  --muted:   #5a6080;
+  --dim:     #2a2f46;
+  --c0: #4f8ef7;
+  --c1: #f97316;
+  --c2: #a855f7;
+  --c3: #10b981;
+  --green: #22d87a;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg:#f0f2f8; --surface:#fff; --border:#dde1ef; --fg:#111827;
+    --muted:#6b7280; --dim:#e5e7f0; --green:#16a34a; color-scheme:light;
+  }
+}
+:root[data-theme="light"] {
+  --bg:#f0f2f8; --surface:#fff; --border:#dde1ef; --fg:#111827;
+  --muted:#6b7280; --dim:#e5e7f0; --green:#16a34a; color-scheme:light;
+}
+
+*, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+body {
+  background:var(--bg); color:var(--fg);
+  font-family:'Inter',system-ui,sans-serif; font-size:13.5px; line-height:1.5;
+  padding-left:max(20px,env(safe-area-inset-left,0px));
+  padding-right:max(20px,env(safe-area-inset-right,0px));
+  padding-block:28px; max-width:900px; margin:0 auto;
+}
+
+header { display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:8px; margin-bottom:24px; }
+header h1 { font-size:17px; font-weight:600; letter-spacing:-0.02em; }
+.tag { font-family:'DM Mono',monospace; font-size:11px; color:var(--muted); letter-spacing:0.05em; }
+
+.kpis { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px; }
+.kpi { flex:1; min-width:120px; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:12px 14px; }
+.kpi-n { font-size:24px; font-weight:600; letter-spacing:-0.03em; font-variant-numeric:tabular-nums; line-height:1; }
+.kpi-l { font-size:10px; text-transform:uppercase; letter-spacing:0.07em; color:var(--muted); margin-top:4px; }
+.kpi.hi .kpi-n { color:var(--green); }
+.kpi.warn .kpi-n { color:var(--c1); }
+
+.chart-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:20px 20px 14px; margin-bottom:16px; }
+.chart-label { font-size:10px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:14px; }
+.chart-wrap { position:relative; height:300px; }
+
+.legend { display:flex; gap:16px; flex-wrap:wrap; margin-top:12px; }
+.legend-item { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); }
+.leg-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+
+.cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:10px; }
+.acard { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 16px; border-left:3px solid var(--border); }
+.acard.done { opacity:0.5; }
+.acard-head { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:10px; }
+.acard-title { font-size:12.5px; font-weight:500; line-height:1.4; min-width:0; }
+.ev-n { font-size:22px; font-weight:600; font-variant-numeric:tabular-nums; letter-spacing:-0.03em; text-align:right; flex-shrink:0; }
+.ev-s { font-size:10px; color:var(--muted); text-align:right; }
+.track { background:var(--dim); border-radius:4px; height:5px; margin-bottom:10px; position:relative; overflow:visible; }
+.fill { height:100%; border-radius:4px; }
+.goal-mark { position:absolute; right:0; top:-6px; height:17px; width:1.5px; background:var(--green); opacity:.6; }
+.detail { display:flex; justify-content:space-between; font-size:11px; color:var(--muted); }
+.pbox { margin-top:8px; padding:7px 10px; border-radius:6px; font-size:11px; }
+.pbox.blue { background:rgba(79,142,247,.08); border:1px solid rgba(79,142,247,.18); }
+.pbox.green { background:rgba(34,216,122,.07); border:1px solid rgba(34,216,122,.18); }
+.pbox.warn  { background:rgba(249,115,22,.07);  border:1px solid rgba(249,115,22,.18); }
+.pbox.done  { background:rgba(16,185,129,.07);  border:1px solid rgba(16,185,129,.18); }
+.pbox strong { color:var(--green); }
+.pbox.warn strong { color:var(--c1); }
+
+#loading { text-align:center; padding:60px 20px; color:var(--muted); font-size:13px; }
+</style>
+
+<header>
+  <h1>30-Day Engaged Views</h1>
+  <span class="tag" id="genLabel">Loading…</span>
+</header>
+<div id="loading">Loading analytics data…</div>
+<div id="app" hidden>
+  <div class="kpis" id="kpis"></div>
+  <div class="chart-card">
+    <div class="chart-label">Trajectory + projection to 30-day window end · dashed = estimated</div>
+    <div class="chart-wrap"><canvas id="chart"></canvas></div>
+    <div class="legend" id="legend"></div>
+  </div>
+  <div class="cards" id="cards"></div>
+  <p style="font-size:11px;color:var(--muted);margin-top:20px;text-align:center">
+    Engaged views update with a 3–5 day delay · $100 bonus at 500 engaged views · TDS
+  </p>
+</div>
+
+<script>
+const GOAL = 500;
+const COLORS = ['#4f8ef7','#f97316','#a855f7','#10b981'];
+
+function addDays(s,n){ const d=new Date(s+'T12:00:00Z'); d.setUTCDate(d.getUTCDate()+n); return d.toISOString().slice(0,10); }
+function daysBetween(a,b){ return Math.round((new Date(b+'T12:00:00Z')-new Date(a+'T12:00:00Z'))/86400000); }
+function fmtDate(s){ return new Date(s+'T12:00:00Z').toLocaleDateString('en-US',{month:'short',day:'numeric'}); }
+function linReg(pts){
+  const n=pts.length; if(n<2) return 0;
+  const xs=pts.map((_,i)=>i), ys=pts.map(p=>p[1]);
+  const sX=xs.reduce((a,b)=>a+b,0), sY=ys.reduce((a,b)=>a+b,0);
+  const sXY=xs.reduce((s,x,i)=>s+x*ys[i],0), sX2=xs.reduce((s,x)=>s+x*x,0);
+  return (n*sXY-sX*sY)/(n*sX2-sX*sX);
+}
+
+function isoDate(s){
+  // "Oct 15, 2026" → "2026-10-15"
+  try { const d=new Date(s+' 12:00:00 UTC'); return d.toISOString().slice(0,10); } catch{ return ''; }
+}
+
+function render(data){
+  const TODAY = data.generated;
+  document.getElementById('genLabel').textContent = 'Updated ' + fmtDate(TODAY) + ' · TDS';
+
+  // Build per-article actuals from snapshots
+  const snapDates = Object.keys(data.snapshots).sort();
+  const todaySnap = data.snapshots[TODAY] || data.snapshots[snapDates[snapDates.length-1]];
+
+  // Filter to in-30-day-window articles
+  const articles = todaySnap
+    .filter(a => a.engagedViews30d > 0)
+    .map((a, i) => {
+      const pubIso = isoDate(a.published);
+      const windowEnd = pubIso ? addDays(pubIso, 30) : '';
+      const daysLeft = windowEnd ? Math.max(0, daysBetween(TODAY, windowEnd)) : 0;
+
+      // Gather actuals across snapshots
+      const norm = t => t.toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,30);
+      const key  = norm(a.title);
+      const actuals = {};
+      for (const [date, snap] of Object.entries(data.snapshots)){
+        const match = snap.find(r => norm(r.title) === key ||
+          (a.slug && r.slug && a.slug === r.slug));
+        if (match) actuals[date] = match.engagedViews30d;
+      }
+
+      const pairs  = Object.entries(actuals).sort();
+      const current = pairs[pairs.length-1][1];
+      const rate    = linReg(pairs.map(([,v],i)=>[i,v]));
+      const needed  = Math.max(0, GOAL - current);
+      const daysToGoal = (rate > 0.5 && needed > 0) ? Math.ceil(needed/rate) : null;
+      const projDate   = daysToGoal ? addDays(TODAY, daysToGoal) : null;
+      const onTrack    = daysToGoal !== null && daysLeft > 0 && daysToGoal <= daysLeft;
+      const projAtEnd  = windowEnd ? Math.round(current + Math.max(0,rate)*daysLeft) : null;
+
+      return {
+        title: a.title, published: a.published, pubIso, payout: a.payout,
+        windowEnd, daysLeft, color: COLORS[i % COLORS.length],
+        current, rate, needed, daysToGoal, projDate, onTrack, projAtEnd,
+        actuals
+      };
+    })
+    .filter(a => a.windowEnd && daysBetween(a.pubIso, TODAY) <= 35); // within ~35d window
+
+  if (!articles.length){ document.getElementById('loading').textContent = 'No in-window articles found.'; return; }
+  document.getElementById('loading').hidden = true;
+  document.getElementById('app').hidden = false;
+
+  // KPIs
+  const onTrackCount = articles.filter(a=>a.onTrack).length;
+  const nearest = [...articles].filter(a=>a.daysToGoal).sort((a,b)=>a.daysToGoal-b.daysToGoal)[0];
+  const paidCount = articles.filter(a=>a.payout&&a.payout!=='--').length;
+  document.getElementById('kpis').innerHTML = [
+    {n:articles.length, l:'Articles in window', cls:''},
+    {n:onTrackCount,    l:'On track for $100',  cls:onTrackCount>0?'hi':''},
+    {n: nearest ? nearest.daysToGoal+'d' : '—', l:'Nearest to 500', cls:nearest?.onTrack?'hi':'warn'},
+    {n: paidCount>0?'$'+(paidCount*100):'$0', l:'Bonus paid this window', cls:paidCount>0?'hi':''},
+  ].map(k=>`<div class="kpi ${k.cls}"><div class="kpi-n">${k.n}</div><div class="kpi-l">${k.l}</div></div>`).join('');
+
+  // Chart
+  const latestEnd = articles.reduce((m,a)=>(!m||a.windowEnd>m)?a.windowEnd:m,'');
+  const allDates = [];
+  for(let d=snapDates[0]; d<=latestEnd; d=addDays(d,1)) allDates.push(d);
+
+  const datasets = [];
+  // Goal line
+  datasets.push({label:'500 goal', data:allDates.map(()=>GOAL),
+    borderColor:'rgba(34,216,122,0.35)', borderDash:[5,5], borderWidth:1.5,
+    pointRadius:0, fill:false, tension:0, order:99});
+
+  articles.forEach(art => {
+    // Actual
+    datasets.push({
+      label: art.title.split(' ').slice(0,5).join(' ')+'…',
+      data: allDates.map(d => art.actuals[d]??null),
+      borderColor:art.color, backgroundColor:art.color+'18',
+      borderWidth:2.5,
+      pointRadius:allDates.map(d=>art.actuals[d]!==undefined?3:0),
+      pointBackgroundColor:art.color,
+      fill:false, tension:0.35, spanGaps:false, order:1
+    });
+    // Projection
+    if(art.rate>0.3 && art.needed>0){
+      const endDate = art.projDate && art.daysToGoal<=art.daysLeft ? art.projDate : art.windowEnd;
+      datasets.push({
+        label:'_'+art.title.slice(0,8),
+        data:allDates.map(d=>{
+          if(d<TODAY||d>endDate) return null;
+          return Math.round(art.current+art.rate*daysBetween(TODAY,d));
+        }),
+        borderColor:art.color+'65', borderDash:[4,4], borderWidth:1.5,
+        pointRadius:0, fill:false, tension:0.2, order:2
+      });
+    }
+  });
+
+  new Chart(document.getElementById('chart'),{
+    type:'line',
+    data:{labels:allDates.map(fmtDate), datasets},
+    options:{
+      responsive:true, maintainAspectRatio:false, animation:{duration:600},
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          filter:item=>!item.dataset.label.startsWith('_'),
+          callbacks:{
+            title:items=>allDates[items[0].dataIndex],
+            label:item=>{
+              if(item.raw===null) return null;
+              if(item.dataset.label==='500 goal') return ' goal: 500';
+              return ` ${item.dataset.label.slice(0,35)}: ${item.raw}`;
+            }
+          }
+        }
+      },
+      scales:{
+        x:{ticks:{color:'#5a6080',font:{size:10,family:"'DM Mono',monospace"},maxRotation:0,autoSkip:true,maxTicksLimit:10},
+           grid:{color:'#1e2235'}},
+        y:{min:0,ticks:{color:'#5a6080',font:{size:10,family:"'DM Mono',monospace"},stepSize:100},
+           grid:{color:'#1e2235'},border:{display:false}}
+      }
+    }
+  });
+
+  // Goal line plugin
+  Chart.register({id:'goalLine',afterDraw(c){
+    const {ctx,chartArea:{left,right,top,bottom},scales:{y}}=c;
+    if(!y) return;
+    const yp=y.getPixelForValue(GOAL);
+    if(yp<top||yp>bottom) return;
+    ctx.save();
+    ctx.beginPath(); ctx.moveTo(left,yp); ctx.lineTo(right,yp);
+    ctx.strokeStyle='rgba(34,216,122,0.5)'; ctx.setLineDash([4,4]); ctx.lineWidth=1.5; ctx.stroke();
+    ctx.font='10px "DM Mono",monospace'; ctx.fillStyle='#22d87a'; ctx.textAlign='right';
+    ctx.fillText('500 goal',right-4,yp-5); ctx.restore();
+  }});
+
+  // Legend
+  document.getElementById('legend').innerHTML = articles.map(a=>
+    `<span class="legend-item"><span class="leg-dot" style="background:${a.color}"></span>${a.title.split(' ').slice(0,4).join(' ')}…</span>`
+  ).join('') + `<span class="legend-item"><span class="leg-dot" style="background:rgba(34,216,122,.35);border-radius:0;height:2px;width:16px"></span>500 goal</span>`;
+
+  // Cards
+  document.getElementById('cards').innerHTML = [...articles].sort((a,b)=>b.current-a.current).map(art=>{
+    const pct = Math.min(100,(art.current/GOAL)*100);
+    const pairs = Object.entries(art.actuals).sort();
+    const d1 = pairs.length>1 ? pairs[pairs.length-1][1]-pairs[pairs.length-2][1] : null;
+    const deltaStr = d1===null?'':d1>0?`<span style="color:var(--green)">+${d1} yesterday</span>`:d1<0?`<span style="color:#e05a5a">${d1} yesterday</span>`:`<span style="color:var(--muted)">no change</span>`;
+
+    let pbox='';
+    if(art.payout&&art.payout!=='--'){
+      pbox=`<div class="pbox done">Bonus earned · ${art.payout} payout confirmed ✓</div>`;
+    } else if(art.onTrack){
+      pbox=`<div class="pbox green">At <strong>+${art.rate.toFixed(1)}/day</strong> → hits 500 around <strong>${fmtDate(art.projDate)}</strong> · $100 bonus on track 🎯</div>`;
+    } else if(art.daysToGoal){
+      pbox=`<div class="pbox warn">At +${art.rate.toFixed(1)}/day → needs ${art.daysToGoal}d but only <strong>${art.daysLeft}d left</strong> · est. ${art.projAtEnd} at window end</div>`;
+    } else {
+      pbox=`<div class="pbox blue">Flat · ${art.daysLeft}d left in window · est. ${art.projAtEnd??art.current} at end</div>`;
+    }
+
+    return `<div class="acard ${art.payout&&art.payout!=='--'?'done':''}" style="border-left-color:${art.color}">
+      <div class="acard-head">
+        <div class="acard-title">${art.title.length>72?art.title.slice(0,69)+'…':art.title}</div>
+        <div><div class="ev-n" style="color:${art.color}">${art.current}</div><div class="ev-s">30D views</div></div>
+      </div>
+      <div class="track">
+        <div class="fill" style="width:${pct}%;background:${art.color}"></div>
+        <div class="goal-mark"></div>
+      </div>
+      <div class="detail">
+        <span>${art.published} · ${art.daysLeft}d left</span>
+        <span>${deltaStr}</span>
+      </div>
+      ${pbox}
+    </div>`;
+  }).join('');
+}
+
+render({"generated":"2026-10-21","snapshots":{"2026-10-17":[{"title":"I Tested Four Ways to Give an AI Assistant a Memory. The Obvious One Was the Worst Value.","published":"Oct 15, 2026","pageviews":225,"engagedViews":106,"engagedViews30d":106,"payout":"--","slug":"","url":""},{"title":"I Built a Trap for AI Image Judges. They Walked Into a Different One.","published":"Oct 12, 2026","pageviews":252,"engagedViews":124,"engagedViews30d":124,"payout":"--"},{"title":"Can an Apartment Search Agent Call the Model Fewer Times and Still Find Good Matches?","published":"Oct 1, 2026","pageviews":446,"engagedViews":225,"engagedViews30d":225,"payout":"--"},{"title":"AI Slop Is Already in Your Training Dataset. I Tested Three Ways to Spot It.","published":"Sep 26, 2026","pageviews":1376,"engagedViews":548,"engagedViews30d":548,"payout":"$100.00","slug":"","url":""},{"title":"One Capital Letter Was Silently Breaking My AI Support Bot","published":"Sep 12, 2026","pageviews":475,"engagedViews":199,"engagedViews30d":194,"payout":"--","slug":"","url":""},{"title":"My Model Was Cheating on Its Own Test","published":"Aug 14, 2026","pageviews":924,"engagedViews":365,"engagedViews30d":359,"payout":"--","slug":"","url":""},{"title":"How to Place Vertiport Locations in Any City Using Geospatial Machine Learning","published":"Aug 12, 2026","pageviews":525,"engagedViews":239,"engagedViews30d":217,"payout":"--","slug":"","url":""},{"title":"I Built a Tool-Calling Agent in Python. Here’s How I Debugged It","published":"Aug 6, 2026","pageviews":3603,"engagedViews":1049,"engagedViews30d":1011,"payout":"$100.00","slug":"","url":""},{"title":"How to Debug AI Coding Agents When They Change the Wrong Thing","published":"Jul 31, 2026","pageviews":875,"engagedViews":300,"engagedViews30d":285,"payout":"--","slug":"","url":""},{"title":"How I Reproduced BM25, Dense Retrieval, and SPLADE on a 16GB MacBook","published":"Jul 27, 2026","pageviews":934,"engagedViews":328,"engagedViews30d":290,"payout":"--","slug":"","url":""},{"title":"I Fine-Tuned OpenVLA-7B with LoRA on Google Colab: What Worked and What 100 Steps Proved","published":"Jul 21, 2026","pageviews":655,"engagedViews":255,"engagedViews30d":215,"payout":"--","slug":"","url":""},{"title":"My Vibe-Coded App Worked Until I Tested 1,000 Users","published":"--","pageviews":2,"engagedViews":2,"engagedViews30d":0,"payout":"--","slug":"","url":""}],"2026-10-18":[{"title":"I Tested Four Ways to Give an AI Assistant a Memory. The Obvious One Was the Worst Value.","published":"Oct 15, 2026","pageviews":247,"engagedViews":115,"engagedViews30d":115,"payout":"--","slug":"","url":""},{"title":"I Built a Trap for AI Image Judges. They Walked Into a Different One.","published":"Oct 12, 2026","pageviews":269,"engagedViews":128,"engagedViews30d":128,"payout":"--"},{"title":"Can an Apartment Search Agent Call the Model Fewer Times and Still Find Good Matches?","published":"Oct 1, 2026","pageviews":460,"engagedViews":228,"engagedViews30d":228,"payout":"--"},{"title":"AI Slop Is Already in Your Training Dataset. I Tested Three Ways to Spot It.","published":"Sep 26, 2026","pageviews":1379,"engagedViews":547,"engagedViews30d":547,"payout":"$100.00","slug":"","url":""},{"title":"One Capital Letter Was Silently Breaking My AI Support Bot","published":"Sep 12, 2026","pageviews":475,"engagedViews":196,"engagedViews30d":194,"payout":"--","slug":"","url":""},{"title":"My Model Was Cheating on Its Own Test","published":"Aug 14, 2026","pageviews":924,"engagedViews":365,"engagedViews30d":359,"payout":"--","slug":"","url":""},{"title":"How to Place Vertiport Locations in Any City Using Geospatial Machine Learning","published":"Aug 12, 2026","pageviews":524,"engagedViews":239,"engagedViews30d":217,"payout":"--","slug":"","url":""},{"title":"I Built a Tool-Calling Agent in Python. Here’s How I Debugged It","published":"Aug 6, 2026","pageviews":3602,"engagedViews":1049,"engagedViews30d":1011,"payout":"$100.00","slug":"","url":""},{"title":"How to Debug AI Coding Agents When They Change the Wrong Thing","published":"Jul 31, 2026","pageviews":876,"engagedViews":300,"engagedViews30d":285,"payout":"--","slug":"","url":""},{"title":"How I Reproduced BM25, Dense Retrieval, and SPLADE on a 16GB MacBook","published":"Jul 27, 2026","pageviews":933,"engagedViews":328,"engagedViews30d":290,"payout":"--","slug":"","url":""},{"title":"I Fine-Tuned OpenVLA-7B with LoRA on Google Colab: What Worked and What 100 Steps Proved","published":"Jul 21, 2026","pageviews":655,"engagedViews":255,"engagedViews30d":215,"payout":"--","slug":"","url":""},{"title":"My Vibe-Coded App Worked Until I Tested 1,000 Users","published":"--","pageviews":2,"engagedViews":2,"engagedViews30d":0,"payout":"--","slug":"","url":""}],"2026-10-19":[{"title":"I Tested Four Ways to Give an AI Assistant a Memory. The Obvious One Was the Worst Value.","published":"Oct 15, 2026","pageviews":271,"engagedViews":124,"engagedViews30d":124,"payout":"--","slug":"","url":""},{"title":"I Tried to Fool an AI Image Evaluator. It Fooled Me Back.","published":"Oct 12, 2026","pageviews":285,"engagedViews":135,"engagedViews30d":135,"payout":"--","slug":"","url":""},{"title":"The biggest savings in My Apartment Search Agent Came From Plain Code, not a Cheaper model.","published":"Oct 1, 2026","pageviews":494,"engagedViews":242,"engagedViews30d":242,"payout":"--"},{"title":"AI Slop Is Already in Your Training Dataset. I Tested Three Ways to Spot It.","published":"Sep 26, 2026","pageviews":1385,"engagedViews":549,"engagedViews30d":549,"payout":"$100.00","slug":"","url":""},{"title":"One Capital Letter Was Silently Breaking My AI Support Bot","published":"Sep 12, 2026","pageviews":476,"engagedViews":196,"engagedViews30d":194,"payout":"--","slug":"","url":""},{"title":"My Model Was Cheating on Its Own Test","published":"Aug 14, 2026","pageviews":924,"engagedViews":365,"engagedViews30d":359,"payout":"--","slug":"","url":""},{"title":"How to Place Vertiport Locations in Any City Using Geospatial Machine Learning","published":"Aug 12, 2026","pageviews":524,"engagedViews":239,"engagedViews30d":217,"payout":"--","slug":"","url":""},{"title":"I Built a Tool-Calling Agent in Python. Here’s How I Debugged It","published":"Aug 6, 2026","pageviews":3603,"engagedViews":1049,"engagedViews30d":1011,"payout":"$100.00","slug":"","url":""},{"title":"How to Debug AI Coding Agents When They Change the Wrong Thing","published":"Jul 31, 2026","pageviews":878,"engagedViews":301,"engagedViews30d":285,"payout":"--","slug":"","url":""},{"title":"How I Reproduced BM25, Dense Retrieval, and SPLADE on a 16GB MacBook","published":"Jul 27, 2026","pageviews":934,"engagedViews":329,"engagedViews30d":290,"payout":"--","slug":"","url":""},{"title":"I Fine-Tuned OpenVLA-7B with LoRA on Google Colab: What Worked and What 100 Steps Proved","published":"Jul 21, 2026","pageviews":656,"engagedViews":255,"engagedViews30d":215,"payout":"--","slug":"","url":""},{"title":"My Vibe-Coded App Worked Until I Tested 1,000 Users","published":"--","pageviews":2,"engagedViews":2,"engagedViews30d":0,"payout":"--","slug":"","url":""}],"2026-10-20":[{"title":"I Tested Four Ways to Give an AI Assistant a Memory. The Obvious One Was the Worst Value.","slug":"6ac89409311616880a8d4f02","url":"https://write.insightmediagroup.io/tds/articles/6ac89409311616880a8d4f02","published":"Oct 15, 2026","pageviews":355,"engagedViews":158,"engagedViews30d":158,"payout":"--"},{"title":"I Tried to Fool an AI Image Evaluator. It Fooled Me Back.","slug":"6ac3e1fc7722106e3c098b77","url":"https://write.insightmediagroup.io/tds/articles/6ac3e1fc7722106e3c098b77","published":"Oct 12, 2026","pageviews":329,"engagedViews":148,"engagedViews30d":148,"payout":"--"},{"title":"I Cut My AI Agent's API Costs in Half. The Fix Had Nothing to Do with the Model.","slug":"6ab8e45894254ea6b1904332","url":"https://write.insightmediagroup.io/tds/articles/6ab8e45894254ea6b1904332","published":"Oct 1, 2026","pageviews":559,"engagedViews":271,"engagedViews30d":271,"payout":"--"},{"title":"AI Slop Is Already in Your Training Dataset. I Tested Three Ways to Spot It.","slug":"6aa7ee4463d98b6b78596c4d","url":"https://write.insightmediagroup.io/tds/articles/6aa7ee4463d98b6b78596c4d","published":"Sep 26, 2026","pageviews":1401,"engagedViews":555,"engagedViews30d":555,"payout":"$100.00"},{"title":"One Capital Letter Was Silently Breaking My AI Support Bot","slug":"6aa068fe75cc942492b12bc3","url":"https://write.insightmediagroup.io/tds/articles/6aa068fe75cc942492b12bc3","published":"Sep 12, 2026","pageviews":480,"engagedViews":198,"engagedViews30d":194,"payout":"--"},{"title":"My Model Was Cheating on Its Own Test","slug":"6a7c778d77842e24ba5f225c","url":"https://write.insightmediagroup.io/tds/articles/6a7c778d77842e24ba5f225c","published":"Aug 14, 2026","pageviews":924,"engagedViews":365,"engagedViews30d":359,"payout":"--"},{"title":"How to Place Vertiport Locations in Any City Using Geospatial Machine Learning","slug":"6a7b1743af24f0891373cd87","url":"https://write.insightmediagroup.io/tds/articles/6a7b1743af24f0891373cd87","published":"Aug 12, 2026","pageviews":524,"engagedViews":239,"engagedViews30d":217,"payout":"--"},{"title":"I Built a Tool-Calling Agent in Python. Here’s How I Debugged It","slug":"6a7b1743af24f0891373cd80","url":"https://write.insightmediagroup.io/tds/articles/6a7b1743af24f0891373cd80","published":"Aug 6, 2026","pageviews":3606,"engagedViews":1050,"engagedViews30d":1011,"payout":"$100.00"},{"title":"How to Debug AI Coding Agents When They Change the Wrong Thing","slug":"6a7b1743af24f0891373cd6b","url":"https://write.insightmediagroup.io/tds/articles/6a7b1743af24f0891373cd6b","published":"Jul 31, 2026","pageviews":879,"engagedViews":302,"engagedViews30d":285,"payout":"--"},{"title":"How I Reproduced BM25, Dense Retrieval, and SPLADE on a 16GB MacBook","slug":"6a7b1743af24f0891373cd55","url":"https://write.insightmediagroup.io/tds/articles/6a7b1743af24f0891373cd55","published":"Jul 27, 2026","pageviews":935,"engagedViews":329,"engagedViews30d":290,"payout":"--"},{"title":"I Fine-Tuned OpenVLA-7B with LoRA on Google Colab: What Worked and What 100 Steps Proved","slug":"6a593fc31ebddc7debcc030d","url":"https://write.insightmediagroup.io/tds/articles/6a593fc31ebddc7debcc030d","published":"Jul 21, 2026","pageviews":657,"engagedViews":257,"engagedViews30d":215,"payout":"--"},{"title":"My Vibe-Coded App Worked Until I Tested 1,000 Users","slug":"6a8c360499fcf8214dbda5a1","url":"https://write.insightmediagroup.io/tds/articles/6a8c360499fcf8214dbda5a1","published":"--","pageviews":2,"engagedViews":2,"engagedViews30d":0,"payout":"--"}],"2026-10-21":[{"title":"I Tested Four Ways to Give an AI Assistant a Memory. The Obvious One Was the Worst Value.","slug":"6ac89409311616880a8d4f02","url":"https://write.insightmediagroup.io/tds/articles/6ac89409311616880a8d4f02","published":"Oct 15, 2026","pageviews":378,"engagedViews":165,"engagedViews30d":165,"payout":"--"},{"title":"I Tried to Fool an AI Image Evaluator. It Fooled Me Back.","slug":"6ac3e1fc7722106e3c098b77","url":"https://write.insightmediagroup.io/tds/articles/6ac3e1fc7722106e3c098b77","published":"Oct 12, 2026","pageviews":347,"engagedViews":163,"engagedViews30d":163,"payout":"--"},{"title":"I Cut My AI Agent's API Costs in Half. The Fix Had Nothing to Do with the Model.","slug":"6ab8e45894254ea6b1904332","url":"https://write.insightmediagroup.io/tds/articles/6ab8e45894254ea6b1904332","published":"Oct 1, 2026","pageviews":698,"engagedViews":321,"engagedViews30d":321,"payout":"--"},{"title":"AI Slop Is Already in Your Training Dataset. I Tested Three Ways to Spot It.","slug":"6aa7ee4463d98b6b78596c4d","url":"https://write.insightmediagroup.io/tds/articles/6aa7ee4463d98b6b78596c4d","published":"Sep 26, 2026","pageviews":1404,"engagedViews":556,"engagedViews30d":556,"payout":"$100.00"},{"title":"One Capital Letter Was Silently Breaking My AI Support Bot","slug":"6aa068fe75cc942492b12bc3","url":"https://write.insightmediagroup.io/tds/articles/6aa068fe75cc942492b12bc3","published":"Sep 12, 2026","pageviews":482,"engagedViews":200,"engagedViews30d":194,"payout":"--"},{"title":"My Model Was Cheating on Its Own Test","slug":"6a7c778d77842e24ba5f225c","url":"https://write.insightmediagroup.io/tds/articles/6a7c778d77842e24ba5f225c","published":"Aug 14, 2026","pageviews":924,"engagedViews":365,"engagedViews30d":359,"payout":"--"},{"title":"How to Place Vertiport Locations in Any City Using Geospatial Machine Learning","slug":"6a7b1743af24f0891373cd87","url":"https://write.insightmediagroup.io/tds/articles/6a7b1743af24f0891373cd87","published":"Aug 12, 2026","pageviews":524,"engagedViews":239,"engagedViews30d":217,"payout":"--"},{"title":"I Built a Tool-Calling Agent in Python. Here’s How I Debugged It","slug":"6a7b1743af24f0891373cd80","url":"https://write.insightmediagroup.io/tds/articles/6a7b1743af24f0891373cd80","published":"Aug 6, 2026","pageviews":3607,"engagedViews":1050,"engagedViews30d":1011,"payout":"$100.00"},{"title":"How to Debug AI Coding Agents When They Change the Wrong Thing","slug":"6a7b1743af24f0891373cd6b","url":"https://write.insightmediagroup.io/tds/articles/6a7b1743af24f0891373cd6b","published":"Jul 31, 2026","pageviews":882,"engagedViews":303,"engagedViews30d":285,"payout":"--"},{"title":"How I Reproduced BM25, Dense Retrieval, and SPLADE on a 16GB MacBook","slug":"6a7b1743af24f0891373cd55","url":"https://write.insightmediagroup.io/tds/articles/6a7b1743af24f0891373cd55","published":"Jul 27, 2026","pageviews":935,"engagedViews":329,"engagedViews30d":290,"payout":"--"},{"title":"I Fine-Tuned OpenVLA-7B with LoRA on Google Colab: What Worked and What 100 Steps Proved","slug":"6a593fc31ebddc7debcc030d","url":"https://write.insightmediagroup.io/tds/articles/6a593fc31ebddc7debcc030d","published":"Jul 21, 2026","pageviews":657,"engagedViews":257,"engagedViews30d":215,"payout":"--"},{"title":"My Vibe-Coded App Worked Until I Tested 1,000 Users","slug":"6a8c360499fcf8214dbda5a1","url":"https://write.insightmediagroup.io/tds/articles/6a8c360499fcf8214dbda5a1","published":"--","pageviews":2,"engagedViews":2,"engagedViews30d":0,"payout":"--"}]}});
+</script>
+
+</body></html>
