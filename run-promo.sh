@@ -10,7 +10,7 @@
 export PROMO_REGIONS="fra ewr sgp ams tor"
 export MOBILE_PCT=0.33   # ~1 in 3 readers uses a mobile viewport
 
-ARTICLE="https://towardsdatascience.com/i-built-a-trap-for-ai-image-judges-they-walked-into-a-different-one/"
+ARTICLE="https://towardsdatascience.com/does-agentic-rag-actually-retrieve-better-evidence-i-tested-it-on-298-questions/"
 ROUNDS=10
 HERE="$(cd "$(dirname "$0")" && pwd)"
 
