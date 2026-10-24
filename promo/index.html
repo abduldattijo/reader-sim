@@ -252,14 +252,14 @@
     </div>
   </div>
 
-  <!-- Token (hidden — baked in) -->
-  <div class="card" hidden>
+  <!-- Token (saved in localStorage, prompted on first use) -->
+  <div class="card" id="token-card" hidden>
     <div class="card-title">GitHub Token</div>
     <div class="token-row">
       <input type="password" id="token-input" placeholder="ghp_…" autocomplete="off">
       <button class="token-clear" id="token-clear">Clear</button>
     </div>
-    <div class="hint">Stored in this tab only — clears when you close the browser.</div>
+    <div class="hint" id="token-hint">Enter once — saved in this browser.</div>
   </div>
 
   <!-- Article -->
@@ -391,17 +391,26 @@
   document.getElementById('pw-btn').addEventListener('click', tryUnlock);
   document.getElementById('pw-input').addEventListener('keydown', e => { if (e.key === 'Enter') tryUnlock(); });
 
-  const BAKED_TOKEN = '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';
-
   async function loadToken() {
-    document.getElementById('token-input').value = BAKED_TOKEN;
+    const saved = (() => { try { return localStorage.getItem('promo_gh_token') || ''; } catch { return ''; } })();
+    const input = document.getElementById('token-input');
+    input.value = saved;
+    if (saved) {
+      document.getElementById('token-hint').textContent = 'Token loaded from this browser.';
+    } else {
+      document.getElementById('token-card').hidden = false;
+    }
     // resume polling if a run was in progress — checks repo file (cross-device)
     const savedRun = await loadRunId();
     if (savedRun) resumeRun(savedRun);
   }
 
+  function getToken() {
+    return document.getElementById('token-input').value.trim();
+  }
+
   async function resumeRun(runId) {
-    const token = BAKED_TOKEN;
+    const token = getToken();
     try {
       const res = await fetch(`https://api.github.com/repos/${REPO}/actions/runs/${runId}`, {
         headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' },
@@ -427,9 +436,14 @@
       }
     } catch {}
   }
-  document.getElementById('token-input').addEventListener('input', () => {});
+  document.getElementById('token-input').addEventListener('input', () => {
+    try { localStorage.setItem('promo_gh_token', document.getElementById('token-input').value); } catch {}
+  });
   document.getElementById('token-clear').addEventListener('click', () => {
-    document.getElementById('token-input').value = BAKED_TOKEN;
+    document.getElementById('token-input').value = '';
+    try { localStorage.removeItem('promo_gh_token'); } catch {}
+    document.getElementById('token-card').hidden = false;
+    document.getElementById('token-hint').textContent = 'Enter once — saved in this browser.';
   });
 
   // --- source toggle ---
@@ -485,15 +499,16 @@
   async function saveRunId(id) {
     try { localStorage.setItem('promo_last_run', String(id)); } catch {}
     try {
+      const tok = getToken(); if (!tok) return;
       const cur = await fetch(`https://api.github.com/repos/${REPO}/contents/${STATE_FILE}`, {
-        headers: { 'Authorization': `token ${BAKED_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' }
+        headers: { 'Authorization': `token ${tok}`, 'Accept': 'application/vnd.github.v3+json' }
       });
       const curData = await cur.json();
       const sha = curData.sha;
       const content = btoa(JSON.stringify({ runId: id, startedAt: new Date().toISOString() }));
       await fetch(`https://api.github.com/repos/${REPO}/contents/${STATE_FILE}`, {
         method: 'PUT',
-        headers: { 'Authorization': `token ${BAKED_TOKEN}`, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
+        headers: { 'Authorization': `token ${tok}`, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: 'promo: update run state', content, sha })
       });
     } catch {}
@@ -501,8 +516,9 @@
 
   async function loadRunId() {
     try {
+      const tok = getToken(); if (!tok) return null;
       const r = await fetch(`https://api.github.com/repos/${REPO}/contents/${STATE_FILE}`, {
-        headers: { 'Authorization': `token ${BAKED_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' }
+        headers: { 'Authorization': `token ${tok}`, 'Accept': 'application/vnd.github.v3+json' }
       });
       const d = await r.json();
       const state = JSON.parse(atob(d.content.replace(/\n/g, '')));
@@ -517,10 +533,10 @@
   let currentRunId = null;
 
   document.getElementById('trigger-btn').addEventListener('click', async () => {
-    const token = document.getElementById('token-input').value.trim();
+    const token = getToken();
     const url = document.getElementById('article-url').value.trim();
 
-    if (!token) { alert('Enter your GitHub token first.'); return; }
+    if (!token) { document.getElementById('token-card').hidden = false; alert('Enter your GitHub token first.'); return; }
     if (!url) { alert('Enter an article URL first.'); return; }
 
     const regions = activeRegions();
