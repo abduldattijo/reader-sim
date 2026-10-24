@@ -1,12 +1,37 @@
 name: promo-run
 
 on:
-  workflow_dispatch:   # trigger manually from GitHub Actions twice, ~1 hour apart
+  workflow_dispatch:
+    inputs:
+      article_url:
+        description: 'Article URL to promote'
+        required: false
+        default: ''
+      traffic_source:
+        description: 'Traffic source: direct, google, linkedin'
+        required: false
+        default: 'direct'
+      bounce_pct:
+        description: 'Bounce rate 0.0–1.0 (default 0.20)'
+        required: false
+        default: '0.20'
+      mobile_pct:
+        description: 'Mobile fraction 0.0–1.0 (default 0.33)'
+        required: false
+        default: '0.33'
+      regions:
+        description: 'Regions space-separated (default: fra ewr sgp ams tor)'
+        required: false
+        default: 'fra ewr sgp ams tor'
+      rounds:
+        description: 'Number of rounds (default 10)'
+        required: false
+        default: '10'
 
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 90   # 5 regions × 10 readers × 300s = ~50 min; 90 min gives headroom
+    timeout-minutes: 90
     permissions:
       contents: read
 
@@ -22,9 +47,15 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Run 50 promotion readers
+      - name: Run promotion readers
         env:
           SCRAPFLY_API_KEY: ${{ secrets.SCRAPFLY_API_KEY }}
+          GUI_ARTICLE_URL:   ${{ github.event.inputs.article_url }}
+          GUI_TRAFFIC_SOURCE: ${{ github.event.inputs.traffic_source }}
+          GUI_BOUNCE_PCT:    ${{ github.event.inputs.bounce_pct }}
+          GUI_MOBILE_PCT:    ${{ github.event.inputs.mobile_pct }}
+          GUI_REGIONS:       ${{ github.event.inputs.regions }}
+          GUI_ROUNDS:        ${{ github.event.inputs.rounds }}
         run: |
           chmod +x run-promo.sh run-test.sh
           ./run-promo.sh
