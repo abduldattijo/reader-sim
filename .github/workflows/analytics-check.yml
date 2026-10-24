@@ -37,16 +37,12 @@ jobs:
           git diff --staged --quiet || git commit -m "analytics: $(date -u +%Y-%m-%d) snapshot"
           git push
 
-      - name: Deploy dashboard to Netlify
-        env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+      - name: Deploy dashboard to GitHub Pages
         run: |
-          mkdir /tmp/netlify-deploy
-          cp dashboard.html /tmp/netlify-deploy/index.html
-          npx --yes netlify-cli deploy \
-            --dir=/tmp/netlify-deploy \
-            --prod \
-            --site=$NETLIFY_SITE_ID \
-            --auth=$NETLIFY_AUTH_TOKEN \
-            --message="analytics: $(date -u +%Y-%m-%d)"
+          git fetch origin gh-pages
+          git checkout gh-pages
+          cp dashboard.html index.html
+          git add index.html
+          git diff --staged --quiet || git commit -m "deploy: dashboard $(date -u +%Y-%m-%d)"
+          git push origin gh-pages
+          git checkout main
