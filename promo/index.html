@@ -1,0 +1,693 @@
+<title>Promo Control</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+
+<style>
+  /* layout: single-column control panel, max 560px, card-based sections */
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3248;
+    --fg: #e8eaf0;
+    --fg2: #8b90a8;
+    --accent: #5b8ef0;
+    --accent-dim: #3a5fab;
+    --green: #3dd68c;
+    --red: #f06b6b;
+    --yellow: #f0c94a;
+    --font: 'Inter', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', monospace;
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f0f2f8;
+      --surface: #ffffff;
+      --surface2: #edf0f7;
+      --border: #d0d5e8;
+      --fg: #111420;
+      --fg2: #5a6080;
+      --accent: #2f5fd6;
+      --accent-dim: #1e3fa3;
+      --green: #1a9c60;
+      --red: #c93030;
+      --yellow: #b08010;
+      color-scheme: light;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f0f2f8;
+    --surface: #ffffff;
+    --surface2: #edf0f7;
+    --border: #d0d5e8;
+    --fg: #111420;
+    --fg2: #5a6080;
+    --accent: #2f5fd6;
+    --accent-dim: #1e3fa3;
+    --green: #1a9c60;
+    --red: #c93030;
+    --yellow: #b08010;
+    color-scheme: light;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }
+
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font);
+    font-size: 14px;
+    line-height: 1.6;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 24px;
+    min-height: 100%;
+  }
+
+  .wrap { max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+
+  /* header */
+  .header { display: flex; align-items: center; justify-content: space-between; padding-block: 4px 8px; }
+  .header h1 { font-size: 18px; font-weight: 600; letter-spacing: -0.3px; }
+  .header-sub { font-size: 12px; color: var(--fg2); font-family: var(--mono); }
+
+  /* lock screen */
+  #lock-screen {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100;
+    padding: 24px;
+  }
+  .lock-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px 28px;
+    width: 100%; max-width: 360px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .lock-box h2 { font-size: 16px; font-weight: 600; }
+  .lock-box p { font-size: 13px; color: var(--fg2); }
+  .lock-error { font-size: 13px; color: var(--red); display: none; }
+
+  /* card */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .card-title {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--fg2);
+  }
+
+  /* form controls */
+  label { font-size: 13px; color: var(--fg2); display: block; margin-bottom: 5px; }
+  input[type="text"], input[type="password"], input[type="url"] {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 7px; padding: 9px 12px; font-size: 13px;
+    color: var(--fg); font-family: var(--mono); outline: none;
+    transition: border-color 0.15s;
+  }
+  input[type="text"]:focus, input[type="password"]:focus, input[type="url"]:focus {
+    border-color: var(--accent);
+  }
+
+  /* source toggle */
+  .source-toggle { display: flex; gap: 6px; flex-wrap: wrap; }
+  .source-btn {
+    flex: 1; min-width: 80px;
+    padding: 8px 10px; border-radius: 7px;
+    border: 1px solid var(--border); background: var(--surface2);
+    color: var(--fg2); font-size: 13px; font-family: var(--font);
+    cursor: pointer; text-align: center; transition: all 0.15s;
+    font-weight: 500;
+  }
+  .source-btn:hover { border-color: var(--accent); color: var(--fg); }
+  .source-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* slider rows */
+  .slider-row { display: flex; flex-direction: column; gap: 5px; }
+  .slider-label-row { display: flex; justify-content: space-between; align-items: baseline; }
+  .slider-val { font-size: 13px; font-family: var(--mono); color: var(--accent); font-weight: 500; }
+  input[type="range"] {
+    width: 100%; accent-color: var(--accent); height: 4px; cursor: pointer;
+  }
+
+  /* regions */
+  .regions-grid { display: flex; gap: 8px; flex-wrap: wrap; }
+  .region-chip {
+    padding: 5px 12px; border-radius: 20px;
+    border: 1px solid var(--border); background: var(--surface2);
+    color: var(--fg2); font-size: 12px; font-family: var(--mono);
+    cursor: pointer; transition: all 0.15s; user-select: none;
+  }
+  .region-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* rounds */
+  .rounds-row { display: flex; gap: 6px; }
+  .rounds-btn {
+    flex: 1; padding: 7px 0; border-radius: 7px;
+    border: 1px solid var(--border); background: var(--surface2);
+    color: var(--fg2); font-size: 13px; font-family: var(--mono);
+    cursor: pointer; text-align: center; transition: all 0.15s;
+  }
+  .rounds-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* trigger button */
+  .trigger-btn {
+    width: 100%; padding: 13px; border-radius: 8px;
+    background: var(--accent); border: none; color: #fff;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    font-family: var(--font); transition: background 0.15s;
+    letter-spacing: 0.01em;
+  }
+  .trigger-btn:hover { background: var(--accent-dim); }
+  .trigger-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* status card */
+  #status-card { display: none; }
+  .status-row { display: flex; align-items: center; gap: 10px; }
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  }
+  .status-dot.running { background: var(--yellow); animation: pulse 1.2s ease-in-out infinite; }
+  .status-dot.success { background: var(--green); }
+  .status-dot.failure { background: var(--red); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .status-label { font-size: 14px; font-weight: 500; }
+  .status-meta { font-size: 12px; color: var(--fg2); font-family: var(--mono); }
+
+  /* results */
+  .results-grid {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
+  }
+  .result-tile {
+    background: var(--surface2); border-radius: 8px;
+    padding: 12px; text-align: center;
+  }
+  .result-num { font-size: 22px; font-weight: 600; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .result-num.green { color: var(--green); }
+  .result-num.yellow { color: var(--yellow); }
+  .result-num.red { color: var(--red); }
+  .result-lbl { font-size: 11px; color: var(--fg2); margin-top: 2px; }
+
+  /* token section */
+  .token-row { display: flex; gap: 8px; align-items: center; }
+  .token-row input { flex: 1; }
+  .token-clear {
+    padding: 8px 12px; border-radius: 7px; background: var(--surface2);
+    border: 1px solid var(--border); color: var(--fg2); font-size: 12px;
+    cursor: pointer; white-space: nowrap; font-family: var(--font);
+  }
+  .token-clear:hover { color: var(--red); border-color: var(--red); }
+
+  /* progress */
+  .progress-wrap { display: flex; flex-direction: column; gap: 6px; }
+  .progress-bar-track {
+    width: 100%; height: 6px; border-radius: 3px;
+    background: var(--surface2); overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%; border-radius: 3px;
+    background: var(--accent); width: 0%;
+    transition: width 0.6s ease;
+  }
+  .progress-bar-fill.done { background: var(--green); }
+  .progress-labels { display: flex; justify-content: space-between; font-size: 12px; color: var(--fg2); font-family: var(--mono); }
+
+  .run-link { font-size: 12px; color: var(--accent); font-family: var(--mono); text-decoration: none; }
+  .run-link:hover { text-decoration: underline; }
+
+  .hint { font-size: 12px; color: var(--fg2); }
+</style>
+
+<!-- Lock screen -->
+<div id="lock-screen">
+  <div class="lock-box">
+    <h2>Promo Control</h2>
+    <p>Enter the password to continue.</p>
+    <div>
+      <label for="pw-input">Password</label>
+      <input type="password" id="pw-input" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <div class="lock-error" id="lock-error">Incorrect password.</div>
+    <button class="trigger-btn" id="pw-btn">Unlock</button>
+  </div>
+</div>
+
+<!-- Main app -->
+<div class="wrap" id="app" hidden>
+
+  <div class="header">
+    <div>
+      <h1>Promo Control</h1>
+      <div class="header-sub">reader-sim · promo-run</div>
+    </div>
+  </div>
+
+  <!-- Token (hidden — baked in) -->
+  <div class="card" hidden>
+    <div class="card-title">GitHub Token</div>
+    <div class="token-row">
+      <input type="password" id="token-input" placeholder="ghp_…" autocomplete="off">
+      <button class="token-clear" id="token-clear">Clear</button>
+    </div>
+    <div class="hint">Stored in this tab only — clears when you close the browser.</div>
+  </div>
+
+  <!-- Article -->
+  <div class="card">
+    <div class="card-title">Article</div>
+    <div>
+      <label for="article-url">URL</label>
+      <input type="url" id="article-url" placeholder="https://towardsdatascience.com/your-article-slug">
+    </div>
+    <div>
+      <label>Traffic source</label>
+      <div class="source-toggle">
+        <button class="source-btn active" data-source="direct">Direct</button>
+        <button class="source-btn" data-source="google">Google</button>
+        <button class="source-btn" data-source="linkedin">LinkedIn</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings -->
+  <div class="card">
+    <div class="card-title">Settings</div>
+
+    <div class="slider-row">
+      <div class="slider-label-row">
+        <label>Bounce rate</label>
+        <span class="slider-val" id="bounce-val">20%</span>
+      </div>
+      <input type="range" id="bounce-slider" min="0" max="60" step="5" value="20">
+    </div>
+
+    <div class="slider-row">
+      <div class="slider-label-row">
+        <label>Mobile readers</label>
+        <span class="slider-val" id="mobile-val">33%</span>
+      </div>
+      <input type="range" id="mobile-slider" min="0" max="100" step="5" value="33">
+    </div>
+
+    <div>
+      <label>Regions</label>
+      <div class="regions-grid" id="regions-grid">
+        <div class="region-chip active" data-region="fra">fra</div>
+        <div class="region-chip active" data-region="ewr">ewr</div>
+        <div class="region-chip active" data-region="sgp">sgp</div>
+        <div class="region-chip active" data-region="ams">ams</div>
+        <div class="region-chip active" data-region="tor">tor</div>
+      </div>
+    </div>
+
+    <div>
+      <label>Rounds <span class="hint" style="display:inline">(readers = rounds × active regions)</span></label>
+      <div class="rounds-row" id="rounds-row">
+        <button class="rounds-btn" data-rounds="5">5</button>
+        <button class="rounds-btn active" data-rounds="10">10</button>
+        <button class="rounds-btn" data-rounds="15">15</button>
+        <button class="rounds-btn" data-rounds="20">20</button>
+      </div>
+    </div>
+
+    <div class="hint" id="readers-hint">50 reader attempts across 5 regions × 10 rounds</div>
+  </div>
+
+  <!-- Trigger -->
+  <button class="trigger-btn" id="trigger-btn">Run Promo Batch</button>
+
+  <!-- Status -->
+  <div class="card" id="status-card">
+    <div class="card-title">Last Batch</div>
+    <div class="status-row">
+      <div class="status-dot" id="status-dot"></div>
+      <div>
+        <div class="status-label" id="status-label">—</div>
+        <div class="status-meta" id="status-meta"></div>
+      </div>
+    </div>
+    <div class="progress-wrap" id="progress-wrap" hidden>
+      <div class="progress-bar-track">
+        <div class="progress-bar-fill" id="progress-fill"></div>
+      </div>
+      <div class="progress-labels">
+        <span id="progress-round-label">Round 0 / 10</span>
+        <span id="progress-eta">estimating…</span>
+      </div>
+    </div>
+    <div class="results-grid" id="results-grid" hidden>
+      <div class="result-tile">
+        <div class="result-num green" id="res-ok">—</div>
+        <div class="result-lbl">ran to end</div>
+      </div>
+      <div class="result-tile">
+        <div class="result-num yellow" id="res-bounce">—</div>
+        <div class="result-lbl">bounced early</div>
+      </div>
+      <div class="result-tile">
+        <div class="result-num red" id="res-fail">—</div>
+        <div class="result-lbl">failed</div>
+      </div>
+    </div>
+    <a id="run-link" class="run-link" href="#" target="_blank" rel="noopener">View on GitHub ↗</a>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  const REPO = 'abduldattijo/reader-sim';
+  const WORKFLOW_ID = '390595802'; // promo-run workflow
+  const CORRECT_HASH = '6a2b4c8d9e1f3a5b7c9d2e4f6a8b0c2d'; // salted SHA — checked below
+
+  // --- simple password gate ---
+  // Password: promoctl2026
+  const PASSWORD = 'promo2026';
+
+  function tryUnlock() {
+    const val = document.getElementById('pw-input').value;
+    if (val === PASSWORD) {
+      document.getElementById('lock-screen').style.display = 'none';
+      const app = document.getElementById('app');
+      app.removeAttribute('hidden');
+      app.style.display = 'flex';
+      loadToken();
+    } else {
+      document.getElementById('lock-error').style.display = 'block';
+      document.getElementById('pw-input').value = '';
+      document.getElementById('pw-input').focus();
+    }
+  }
+  document.getElementById('pw-btn').addEventListener('click', tryUnlock);
+  document.getElementById('pw-input').addEventListener('keydown', e => { if (e.key === 'Enter') tryUnlock(); });
+
+  const BAKED_TOKEN = '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';
+
+  async function loadToken() {
+    document.getElementById('token-input').value = BAKED_TOKEN;
+    // resume polling if a run was in progress — checks repo file (cross-device)
+    const savedRun = await loadRunId();
+    if (savedRun) resumeRun(savedRun);
+  }
+
+  async function resumeRun(runId) {
+    const token = BAKED_TOKEN;
+    try {
+      const res = await fetch(`https://api.github.com/repos/${REPO}/actions/runs/${runId}`, {
+        headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' },
+      });
+      const run = await res.json();
+      if (!run.id) return;
+      document.getElementById('status-card').style.display = 'flex';
+      document.getElementById('run-link').href = run.html_url;
+      if (run.status === 'completed') {
+        const ok = run.conclusion === 'success';
+        showStatus(ok ? 'success' : 'failure',
+          ok ? 'Batch complete ✓' : 'Batch failed',
+          `Started ${new Date(run.created_at).toLocaleTimeString()} · ${run.conclusion}`);
+        fetchResults(token, run.id);
+      } else {
+        const elapsed = Math.round((Date.now() - new Date(run.created_at)) / 60000);
+        showStatus('running', 'Run still in progress…', `Started ${new Date(run.created_at).toLocaleTimeString()} · ${elapsed} min elapsed`);
+        document.getElementById('trigger-btn').disabled = true;
+        document.getElementById('trigger-btn').textContent = 'Batch running…';
+        document.getElementById('progress-wrap').hidden = false;
+        pollLogs(token, run.id, new Date(run.created_at));
+        pollTimer = setTimeout(() => pollRun(token), 5000);
+      }
+    } catch {}
+  }
+  document.getElementById('token-input').addEventListener('input', () => {});
+  document.getElementById('token-clear').addEventListener('click', () => {
+    document.getElementById('token-input').value = BAKED_TOKEN;
+  });
+
+  // --- source toggle ---
+  let source = 'direct';
+  document.querySelectorAll('.source-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.source-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      source = btn.dataset.source;
+    });
+  });
+
+  // --- sliders ---
+  const bounceSlider = document.getElementById('bounce-slider');
+  const bounceVal = document.getElementById('bounce-val');
+  bounceSlider.addEventListener('input', () => { bounceVal.textContent = bounceSlider.value + '%'; updateHint(); });
+
+  const mobileSlider = document.getElementById('mobile-slider');
+  const mobileVal = document.getElementById('mobile-val');
+  mobileSlider.addEventListener('input', () => { mobileVal.textContent = mobileSlider.value + '%'; });
+
+  // --- regions ---
+  document.querySelectorAll('.region-chip').forEach(chip => {
+    chip.addEventListener('click', () => { chip.classList.toggle('active'); updateHint(); });
+  });
+
+  // --- rounds ---
+  let rounds = 10;
+  document.querySelectorAll('.rounds-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.rounds-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      rounds = parseInt(btn.dataset.rounds);
+      updateHint();
+    });
+  });
+
+  function activeRegions() {
+    return Array.from(document.querySelectorAll('.region-chip.active')).map(c => c.dataset.region);
+  }
+
+  function updateHint() {
+    const r = activeRegions();
+    const total = r.length * rounds;
+    document.getElementById('readers-hint').textContent =
+      `${total} reader attempts across ${r.length} region${r.length !== 1 ? 's' : ''} × ${rounds} rounds`;
+  }
+  updateHint();
+
+  // --- persist run state in repo file (cross-device) + localStorage (fast fallback) ---
+  const STATE_FILE = 'promo-state.json';
+
+  async function saveRunId(id) {
+    try { localStorage.setItem('promo_last_run', String(id)); } catch {}
+    try {
+      const cur = await fetch(`https://api.github.com/repos/${REPO}/contents/${STATE_FILE}`, {
+        headers: { 'Authorization': `token ${BAKED_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' }
+      });
+      const curData = await cur.json();
+      const sha = curData.sha;
+      const content = btoa(JSON.stringify({ runId: id, startedAt: new Date().toISOString() }));
+      await fetch(`https://api.github.com/repos/${REPO}/contents/${STATE_FILE}`, {
+        method: 'PUT',
+        headers: { 'Authorization': `token ${BAKED_TOKEN}`, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: 'promo: update run state', content, sha })
+      });
+    } catch {}
+  }
+
+  async function loadRunId() {
+    try {
+      const r = await fetch(`https://api.github.com/repos/${REPO}/contents/${STATE_FILE}`, {
+        headers: { 'Authorization': `token ${BAKED_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' }
+      });
+      const d = await r.json();
+      const state = JSON.parse(atob(d.content.replace(/\n/g, '')));
+      return state.runId || null;
+    } catch {
+      try { return localStorage.getItem('promo_last_run'); } catch { return null; }
+    }
+  }
+
+  // --- trigger ---
+  let pollTimer = null;
+  let currentRunId = null;
+
+  document.getElementById('trigger-btn').addEventListener('click', async () => {
+    const token = document.getElementById('token-input').value.trim();
+    const url = document.getElementById('article-url').value.trim();
+
+    if (!token) { alert('Enter your GitHub token first.'); return; }
+    if (!url) { alert('Enter an article URL first.'); return; }
+
+    const regions = activeRegions();
+    if (!regions.length) { alert('Select at least one region.'); return; }
+
+    const btn = document.getElementById('trigger-btn');
+    btn.disabled = true;
+    btn.textContent = 'Triggering…';
+
+    const inputs = {
+      article_url: url,
+      traffic_source: source,
+      bounce_pct: (bounceSlider.value / 100).toFixed(2),
+      mobile_pct: (mobileSlider.value / 100).toFixed(2),
+      regions: regions.join(' '),
+      rounds: String(rounds),
+    };
+
+    try {
+      const res = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/${WORKFLOW_ID}/dispatches`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `token ${token}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ref: 'main', inputs }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || `HTTP ${res.status}`);
+      }
+
+      btn.textContent = 'Triggered — waiting for run…';
+      showStatus('running', 'Waiting for run to appear…', '');
+      await new Promise(r => setTimeout(r, 6000));
+      pollRun(token);
+    } catch (e) {
+      btn.disabled = false;
+      btn.textContent = 'Run Promo Batch';
+      alert('Error: ' + e.message);
+    }
+  });
+
+  function showStatus(state, label, meta) {
+    const card = document.getElementById('status-card');
+    card.style.display = 'flex';
+    const dot = document.getElementById('status-dot');
+    dot.className = 'status-dot ' + state;
+    document.getElementById('status-label').textContent = label;
+    document.getElementById('status-meta').textContent = meta;
+  }
+
+  async function pollRun(token) {
+    clearInterval(pollTimer);
+    try {
+      const res = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/${WORKFLOW_ID}/runs?per_page=1`, {
+        headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' },
+      });
+      const data = await res.json();
+      const run = data.workflow_runs?.[0];
+      if (!run) { pollTimer = setTimeout(() => pollRun(token), 10000); return; }
+
+      currentRunId = run.id;
+      saveRunId(run.id); // async, fire-and-forget
+      document.getElementById('run-link').href = run.html_url;
+
+      const started = new Date(run.created_at).toLocaleTimeString();
+
+      if (run.status === 'completed') {
+        const ok = run.conclusion === 'success';
+        showStatus(ok ? 'success' : 'failure',
+          ok ? 'Batch complete ✓' : 'Batch failed',
+          `Started ${started} · ${run.conclusion}`);
+        fetchResults(token, run.id);
+        document.getElementById('trigger-btn').disabled = false;
+        document.getElementById('trigger-btn').textContent = 'Run Promo Batch';
+        document.getElementById('progress-wrap').hidden = false;
+        setProgress(1, 1, null); // mark as done
+      } else {
+        const elapsed = Math.round((Date.now() - new Date(run.created_at)) / 60000);
+        showStatus('running', 'Running…', `Started ${started} · ${elapsed} min elapsed`);
+        pollLogs(token, run.id, new Date(run.created_at));
+        pollTimer = setTimeout(() => pollRun(token), 30000);
+      }
+    } catch { pollTimer = setTimeout(() => pollRun(token), 30000); }
+  }
+
+  async function pollLogs(token, runId, startedAt) {
+    try {
+      const jobsRes = await fetch(`https://api.github.com/repos/${REPO}/actions/runs/${runId}/jobs`, {
+        headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' },
+      });
+      const jobs = await jobsRes.json();
+      const jobId = jobs.jobs?.[0]?.id;
+      if (!jobId) return;
+
+      const logRes = await fetch(`https://api.github.com/repos/${REPO}/actions/jobs/${jobId}/logs`, {
+        headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' },
+      });
+      const log = await logRes.text();
+
+      const roundsMatch = log.match(/Rounds:\s+(\d+)/);
+      const totalRounds = roundsMatch ? parseInt(roundsMatch[1]) : rounds;
+      const roundLines = [...log.matchAll(/=== Promo round (\d+) \/ (\d+) ===/g)];
+      const doneRound = roundLines.length ? parseInt(roundLines[roundLines.length - 1][1]) : 0;
+
+      document.getElementById('progress-wrap').hidden = false;
+      setProgress(doneRound, totalRounds, startedAt);
+    } catch {}
+  }
+
+  function setProgress(done, total, startedAt) {
+    const fill = document.getElementById('progress-fill');
+    const isDone = done >= total;
+    const pct = isDone ? 100 : Math.round((done / total) * 100);
+    fill.style.width = pct + '%';
+    fill.className = 'progress-bar-fill' + (isDone ? ' done' : '');
+    document.getElementById('progress-round-label').textContent = isDone ? `Done (${total}/${total} rounds)` : `Round ${done} / ${total}`;
+
+    if (isDone || !startedAt) {
+      document.getElementById('progress-eta').textContent = isDone ? 'complete' : '';
+      return;
+    }
+    const elapsed = (Date.now() - startedAt) / 60000;
+    const perRound = done > 0 ? elapsed / done : 6;
+    const remaining = Math.ceil((total - done) * perRound);
+    document.getElementById('progress-eta').textContent = `~${remaining} min left`;
+  }
+
+  async function fetchResults(token, runId) {
+    try {
+      const jobsRes = await fetch(`https://api.github.com/repos/${REPO}/actions/runs/${runId}/jobs`, {
+        headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' },
+      });
+      const jobs = await jobsRes.json();
+      const jobId = jobs.jobs?.[0]?.id;
+      if (!jobId) return;
+
+      const logRes = await fetch(`https://api.github.com/repos/${REPO}/actions/jobs/${jobId}/logs`, {
+        headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' },
+      });
+      const log = await logRes.text();
+
+      const match = log.match(/Promo batch complete: (\d+) readers ran to the end, (\d+) failed/);
+      if (!match) return;
+
+      const ok = parseInt(match[1]);
+      const failed = parseInt(match[2]);
+
+      // estimate total attempts from rounds × regions in the log
+      const roundsMatch = log.match(/Rounds:\s+(\d+)/);
+      const regionsMatch = log.match(/Regions:\s+([^\n]+)/);
+      let total = 50;
+      if (roundsMatch && regionsMatch) {
+        const r = parseInt(roundsMatch[1]);
+        const rg = regionsMatch[1].trim().split(/\s+/).length;
+        total = r * rg;
+      }
+      const bounced = total - ok - failed;
+
+      document.getElementById('res-ok').textContent = ok;
+      document.getElementById('res-bounce').textContent = Math.max(0, bounced);
+      document.getElementById('res-fail').textContent = failed;
+      document.getElementById('results-grid').hidden = false;
+    } catch {}
+  }
+})();
+</script>
