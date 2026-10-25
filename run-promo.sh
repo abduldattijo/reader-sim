@@ -10,11 +10,13 @@ DEFAULT_BOUNCE="0.20"
 DEFAULT_MOBILE="0.33"
 DEFAULT_REGIONS="fra ewr sgp ams tor"
 DEFAULT_ROUNDS="10"
+DEFAULT_READERS="1"
 
 # --- resolve settings ---
 ARTICLE="${GUI_ARTICLE_URL:-$DEFAULT_ARTICLE}"
 TRAFFIC="${GUI_TRAFFIC_SOURCE:-$DEFAULT_TRAFFIC}"
 ROUNDS="${GUI_ROUNDS:-$DEFAULT_ROUNDS}"
+READERS="${GUI_READERS_PER_REGION:-$DEFAULT_READERS}"
 
 export PROMO_REGIONS="${GUI_REGIONS:-$DEFAULT_REGIONS}"
 export MOBILE_PCT="${GUI_MOBILE_PCT:-$DEFAULT_MOBILE}"
@@ -33,6 +35,7 @@ fi
 echo "Article:  $ARTICLE"
 echo "Regions:  $PROMO_REGIONS"
 echo "Rounds:   $ROUNDS"
+echo "Readers per region: $READERS"
 echo "Bounce:   $BOUNCE_PCT  Mobile: $MOBILE_PCT"
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -42,7 +45,7 @@ fail_total=0
 for i in $(seq 1 $ROUNDS); do
   echo ""
   echo "=== Promo round $i / $ROUNDS ==="
-  OUT=$("$HERE/run-test.sh" "$ARTICLE" 1 300 2>&1)
+  OUT=$("$HERE/run-test.sh" "$ARTICLE" "$READERS" 300 2>&1)
   echo "$OUT"
   ok=$(echo "$OUT"   | grep -oP '(?<=; )\d+(?= ran to the end)' | tail -1)
   fail=$(echo "$OUT" | grep -oP '\d+(?= failed)'                 | tail -1)
