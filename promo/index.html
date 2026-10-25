@@ -311,12 +311,22 @@
     </div>
 
     <div>
-      <label>Rounds <span class="hint" style="display:inline">(readers = rounds × active regions)</span></label>
+      <label>Rounds <span class="hint" style="display:inline">(readers = rounds × active regions × readers/region)</span></label>
       <div class="rounds-row" id="rounds-row">
         <button class="rounds-btn" data-rounds="5">5</button>
         <button class="rounds-btn active" data-rounds="10">10</button>
         <button class="rounds-btn" data-rounds="15">15</button>
         <button class="rounds-btn" data-rounds="20">20</button>
+      </div>
+    </div>
+
+    <div>
+      <label>Readers per region <span class="hint" style="display:inline">(Pro plan: up to 4)</span></label>
+      <div class="rounds-row" id="readers-row">
+        <button class="rounds-btn active" data-readers="1">1</button>
+        <button class="rounds-btn" data-readers="2">2</button>
+        <button class="rounds-btn" data-readers="3">3</button>
+        <button class="rounds-btn" data-readers="4">4</button>
       </div>
     </div>
 
@@ -472,11 +482,22 @@
 
   // --- rounds ---
   let rounds = 10;
-  document.querySelectorAll('.rounds-btn').forEach(btn => {
+  document.querySelectorAll('#rounds-row .rounds-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.rounds-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('#rounds-row .rounds-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       rounds = parseInt(btn.dataset.rounds);
+      updateHint();
+    });
+  });
+
+  // --- readers per region ---
+  let readersPerRegion = 1;
+  document.querySelectorAll('#readers-row .rounds-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#readers-row .rounds-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      readersPerRegion = parseInt(btn.dataset.readers);
       updateHint();
     });
   });
@@ -487,9 +508,9 @@
 
   function updateHint() {
     const r = activeRegions();
-    const total = r.length * rounds;
+    const total = r.length * rounds * readersPerRegion;
     document.getElementById('readers-hint').textContent =
-      `${total} reader attempts across ${r.length} region${r.length !== 1 ? 's' : ''} × ${rounds} rounds`;
+      `${total} reader attempts across ${r.length} region${r.length !== 1 ? 's' : ''} × ${rounds} rounds × ${readersPerRegion} reader${readersPerRegion !== 1 ? 's' : ''}/region`;
   }
   updateHint();
 
@@ -558,6 +579,7 @@
       mobile_pct: (mobileSlider.value / 100).toFixed(2),
       regions: regions.join(' '),
       rounds: String(rounds),
+      readers_per_region: String(readersPerRegion),
     };
 
     try {
