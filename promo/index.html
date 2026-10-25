@@ -546,6 +546,11 @@
     btn.disabled = true;
     btn.textContent = 'Triggering…';
 
+    // clear stale results from previous run
+    document.getElementById('results-grid').hidden = true;
+    document.getElementById('progress-wrap').hidden = true;
+    document.getElementById('status-card').style.display = 'none';
+
     const inputs = {
       article_url: url,
       traffic_source: source,
