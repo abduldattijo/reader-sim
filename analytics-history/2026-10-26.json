@@ -1,0 +1,135 @@
+{
+  "date": "2026-10-26",
+  "articles": [
+    {
+      "title": "Does Agentic RAG Actually Retrieve Better Evidence? I Tested It on 298 Questions",
+      "slug": "6ad124325a7695c66db1c241",
+      "url": "https://write.insightmediagroup.io/tds/articles/6ad124325a7695c66db1c241",
+      "published": "Oct 22, 2026",
+      "pageviews": 726,
+      "engagedViews": 357,
+      "engagedViews30d": 357,
+      "payout": "--"
+    },
+    {
+      "title": "I Tested Four Ways to Give an AI Assistant a Memory. The Obvious One Was the Worst Value.",
+      "slug": "6ac89409311616880a8d4f02",
+      "url": "https://write.insightmediagroup.io/tds/articles/6ac89409311616880a8d4f02",
+      "published": "Oct 15, 2026",
+      "pageviews": 732,
+      "engagedViews": 297,
+      "engagedViews30d": 297,
+      "payout": "--"
+    },
+    {
+      "title": "I Tried to Fool an AI Image Evaluator. It Fooled Me Back.",
+      "slug": "6ac3e1fc7722106e3c098b77",
+      "url": "https://write.insightmediagroup.io/tds/articles/6ac3e1fc7722106e3c098b77",
+      "published": "Oct 12, 2026",
+      "pageviews": 1054,
+      "engagedViews": 416,
+      "engagedViews30d": 416,
+      "payout": "--"
+    },
+    {
+      "title": "I Cut My AI Agent's API Costs in Half. The Fix Had Nothing to Do with the Model.",
+      "slug": "6ab8e45894254ea6b1904332",
+      "url": "https://write.insightmediagroup.io/tds/articles/6ab8e45894254ea6b1904332",
+      "published": "Oct 1, 2026",
+      "pageviews": 1235,
+      "engagedViews": 517,
+      "engagedViews30d": 517,
+      "payout": "$100.00"
+    },
+    {
+      "title": "AI Slop Is Already in Your Training Dataset. I Tested Three Ways to Spot It.",
+      "slug": "6aa7ee4463d98b6b78596c4d",
+      "url": "https://write.insightmediagroup.io/tds/articles/6aa7ee4463d98b6b78596c4d",
+      "published": "Sep 26, 2026",
+      "pageviews": 1418,
+      "engagedViews": 560,
+      "engagedViews30d": 560,
+      "payout": "$100.00"
+    },
+    {
+      "title": "One Capital Letter Was Silently Breaking My AI Support Bot",
+      "slug": "6aa068fe75cc942492b12bc3",
+      "url": "https://write.insightmediagroup.io/tds/articles/6aa068fe75cc942492b12bc3",
+      "published": "Sep 12, 2026",
+      "pageviews": 494,
+      "engagedViews": 203,
+      "engagedViews30d": 194,
+      "payout": "--"
+    },
+    {
+      "title": "My Model Was Cheating on Its Own Test",
+      "slug": "6a7c778d77842e24ba5f225c",
+      "url": "https://write.insightmediagroup.io/tds/articles/6a7c778d77842e24ba5f225c",
+      "published": "Aug 14, 2026",
+      "pageviews": 925,
+      "engagedViews": 367,
+      "engagedViews30d": 359,
+      "payout": "--"
+    },
+    {
+      "title": "How to Place Vertiport Locations in Any City Using Geospatial Machine Learning",
+      "slug": "6a7b1743af24f0891373cd87",
+      "url": "https://write.insightmediagroup.io/tds/articles/6a7b1743af24f0891373cd87",
+      "published": "Aug 12, 2026",
+      "pageviews": 526,
+      "engagedViews": 241,
+      "engagedViews30d": 217,
+      "payout": "--"
+    },
+    {
+      "title": "I Built a Tool-Calling Agent in Python. Here’s How I Debugged It",
+      "slug": "6a7b1743af24f0891373cd80",
+      "url": "https://write.insightmediagroup.io/tds/articles/6a7b1743af24f0891373cd80",
+      "published": "Aug 6, 2026",
+      "pageviews": 3621,
+      "engagedViews": 1056,
+      "engagedViews30d": 1011,
+      "payout": "$100.00"
+    },
+    {
+      "title": "How to Debug AI Coding Agents When They Change the Wrong Thing",
+      "slug": "6a7b1743af24f0891373cd6b",
+      "url": "https://write.insightmediagroup.io/tds/articles/6a7b1743af24f0891373cd6b",
+      "published": "Jul 31, 2026",
+      "pageviews": 886,
+      "engagedViews": 304,
+      "engagedViews30d": 285,
+      "payout": "--"
+    },
+    {
+      "title": "How I Reproduced BM25, Dense Retrieval, and SPLADE on a 16GB MacBook",
+      "slug": "6a7b1743af24f0891373cd55",
+      "url": "https://write.insightmediagroup.io/tds/articles/6a7b1743af24f0891373cd55",
+      "published": "Jul 27, 2026",
+      "pageviews": 944,
+      "engagedViews": 332,
+      "engagedViews30d": 290,
+      "payout": "--"
+    },
+    {
+      "title": "I Fine-Tuned OpenVLA-7B with LoRA on Google Colab: What Worked and What 100 Steps Proved",
+      "slug": "6a593fc31ebddc7debcc030d",
+      "url": "https://write.insightmediagroup.io/tds/articles/6a593fc31ebddc7debcc030d",
+      "published": "Jul 21, 2026",
+      "pageviews": 661,
+      "engagedViews": 259,
+      "engagedViews30d": 215,
+      "payout": "--"
+    },
+    {
+      "title": "My Vibe-Coded App Worked Until I Tested 1,000 Users",
+      "slug": "6a8c360499fcf8214dbda5a1",
+      "url": "https://write.insightmediagroup.io/tds/articles/6a8c360499fcf8214dbda5a1",
+      "published": "--",
+      "pageviews": 2,
+      "engagedViews": 2,
+      "engagedViews30d": 0,
+      "payout": "--"
+    }
+  ]
+}
