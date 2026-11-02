@@ -1,0 +1,308 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>TDS Analytics</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+<style>
+:root {
+  --bg:      #0c0e14;
+  --surface: #13161f;
+  --border:  #1e2235;
+  --fg:      #e0e4f0;
+  --muted:   #5a6080;
+  --dim:     #2a2f46;
+  --c0: #4f8ef7;
+  --c1: #f97316;
+  --c2: #a855f7;
+  --c3: #10b981;
+  --green: #22d87a;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg:#f0f2f8; --surface:#fff; --border:#dde1ef; --fg:#111827;
+    --muted:#6b7280; --dim:#e5e7f0; --green:#16a34a; color-scheme:light;
+  }
+}
+:root[data-theme="light"] {
+  --bg:#f0f2f8; --surface:#fff; --border:#dde1ef; --fg:#111827;
+  --muted:#6b7280; --dim:#e5e7f0; --green:#16a34a; color-scheme:light;
+}
+
+*, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+body {
+  background:var(--bg); color:var(--fg);
+  font-family:'Inter',system-ui,sans-serif; font-size:13.5px; line-height:1.5;
+  padding-left:max(20px,env(safe-area-inset-left,0px));
+  padding-right:max(20px,env(safe-area-inset-right,0px));
+  padding-block:28px; max-width:900px; margin:0 auto;
+}
+
+header { display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:8px; margin-bottom:24px; }
+header h1 { font-size:17px; font-weight:600; letter-spacing:-0.02em; }
+.tag { font-family:'DM Mono',monospace; font-size:11px; color:var(--muted); letter-spacing:0.05em; }
+
+.kpis { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px; }
+.kpi { flex:1; min-width:120px; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:12px 14px; }
+.kpi-n { font-size:24px; font-weight:600; letter-spacing:-0.03em; font-variant-numeric:tabular-nums; line-height:1; }
+.kpi-l { font-size:10px; text-transform:uppercase; letter-spacing:0.07em; color:var(--muted); margin-top:4px; }
+.kpi.hi .kpi-n { color:var(--green); }
+.kpi.warn .kpi-n { color:var(--c1); }
+
+.chart-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:20px 20px 14px; margin-bottom:16px; }
+.chart-label { font-size:10px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:14px; }
+.chart-wrap { position:relative; height:300px; }
+
+.legend { display:flex; gap:16px; flex-wrap:wrap; margin-top:12px; }
+.legend-item { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); }
+.leg-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+
+.cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:10px; }
+.acard { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 16px; border-left:3px solid var(--border); }
+.acard.done { opacity:0.5; }
+.acard-head { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:10px; }
+.acard-title { font-size:12.5px; font-weight:500; line-height:1.4; min-width:0; }
+.ev-n { font-size:22px; font-weight:600; font-variant-numeric:tabular-nums; letter-spacing:-0.03em; text-align:right; flex-shrink:0; }
+.ev-s { font-size:10px; color:var(--muted); text-align:right; }
+.track { background:var(--dim); border-radius:4px; height:5px; margin-bottom:10px; position:relative; overflow:visible; }
+.fill { height:100%; border-radius:4px; }
+.goal-mark { position:absolute; right:0; top:-6px; height:17px; width:1.5px; background:var(--green); opacity:.6; }
+.detail { display:flex; justify-content:space-between; font-size:11px; color:var(--muted); }
+.pbox { margin-top:8px; padding:7px 10px; border-radius:6px; font-size:11px; }
+.pbox.blue { background:rgba(79,142,247,.08); border:1px solid rgba(79,142,247,.18); }
+.pbox.green { background:rgba(34,216,122,.07); border:1px solid rgba(34,216,122,.18); }
+.pbox.warn  { background:rgba(249,115,22,.07);  border:1px solid rgba(249,115,22,.18); }
+.pbox.done  { background:rgba(16,185,129,.07);  border:1px solid rgba(16,185,129,.18); }
+.pbox strong { color:var(--green); }
+.pbox.warn strong { color:var(--c1); }
+
+#loading { text-align:center; padding:60px 20px; color:var(--muted); font-size:13px; }
+</style>
+
+<header>
+  <h1>30-Day Engaged Views</h1>
+  <span class="tag" id="genLabel">Loading…</span>
+</header>
+<div id="loading">Loading analytics data…</div>
+<div id="app" hidden>
+  <div class="kpis" id="kpis"></div>
+  <div class="chart-card">
+    <div class="chart-label">Trajectory + projection to 30-day window end · dashed = estimated</div>
+    <div class="chart-wrap"><canvas id="chart"></canvas></div>
+    <div class="legend" id="legend"></div>
+  </div>
+  <div class="cards" id="cards"></div>
+  <p style="font-size:11px;color:var(--muted);margin-top:20px;text-align:center">
+    Engaged views update with a 3–5 day delay · $100 bonus at 500 engaged views · TDS
+  </p>
+</div>
+
+<script>
+const GOAL = 500;
+const COLORS = ['#4f8ef7','#f97316','#a855f7','#10b981'];
+
+function addDays(s,n){ const d=new Date(s+'T12:00:00Z'); d.setUTCDate(d.getUTCDate()+n); return d.toISOString().slice(0,10); }
+function daysBetween(a,b){ return Math.round((new Date(b+'T12:00:00Z')-new Date(a+'T12:00:00Z'))/86400000); }
+function fmtDate(s){ return new Date(s+'T12:00:00Z').toLocaleDateString('en-US',{month:'short',day:'numeric'}); }
+function linReg(pts){
+  const n=pts.length; if(n<2) return 0;
+  const xs=pts.map((_,i)=>i), ys=pts.map(p=>p[1]);
+  const sX=xs.reduce((a,b)=>a+b,0), sY=ys.reduce((a,b)=>a+b,0);
+  const sXY=xs.reduce((s,x,i)=>s+x*ys[i],0), sX2=xs.reduce((s,x)=>s+x*x,0);
+  return (n*sXY-sX*sY)/(n*sX2-sX*sX);
+}
+
+function isoDate(s){
+  // "Oct 15, 2026" → "2026-10-15"
+  try { const d=new Date(s+' 12:00:00 UTC'); return d.toISOString().slice(0,10); } catch{ return ''; }
+}
+
+function render(data){
+  const TODAY = data.generated;
+  document.getElementById('genLabel').textContent = 'Updated ' + fmtDate(TODAY) + ' · TDS';
+
+  // Build per-article actuals from snapshots
+  const snapDates = Object.keys(data.snapshots).sort();
+  const todaySnap = data.snapshots[TODAY] || data.snapshots[snapDates[snapDates.length-1]];
+
+  // Filter to in-30-day-window articles
+  const articles = todaySnap
+    .filter(a => a.engagedViews30d > 0)
+    .map((a, i) => {
+      const pubIso = isoDate(a.published);
+      const windowEnd = pubIso ? addDays(pubIso, 30) : '';
+      const daysLeft = windowEnd ? Math.max(0, daysBetween(TODAY, windowEnd)) : 0;
+
+      // Gather actuals across snapshots
+      const norm = t => t.toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,30);
+      const key  = norm(a.title);
+      const actuals = {};
+      for (const [date, snap] of Object.entries(data.snapshots)){
+        const match = snap.find(r => norm(r.title) === key ||
+          (a.slug && r.slug && a.slug === r.slug));
+        if (match) actuals[date] = match.engagedViews30d;
+      }
+
+      const pairs  = Object.entries(actuals).sort();
+      const current = pairs[pairs.length-1][1];
+      const rate    = linReg(pairs.map(([,v],i)=>[i,v]));
+      const needed  = Math.max(0, GOAL - current);
+      const daysToGoal = (rate > 0.5 && needed > 0) ? Math.ceil(needed/rate) : null;
+      const projDate   = daysToGoal ? addDays(TODAY, daysToGoal) : null;
+      const onTrack    = daysToGoal !== null && daysLeft > 0 && daysToGoal <= daysLeft;
+      const projAtEnd  = windowEnd ? Math.round(current + Math.max(0,rate)*daysLeft) : null;
+
+      return {
+        title: a.title, published: a.published, pubIso, payout: a.payout,
+        windowEnd, daysLeft, color: COLORS[i % COLORS.length],
+        current, rate, needed, daysToGoal, projDate, onTrack, projAtEnd,
+        actuals
+      };
+    })
+    .filter(a => a.windowEnd && daysBetween(a.pubIso, TODAY) <= 35); // within ~35d window
+
+  if (!articles.length){ document.getElementById('loading').textContent = 'No in-window articles found.'; return; }
+  document.getElementById('loading').hidden = true;
+  document.getElementById('app').hidden = false;
+
+  // KPIs
+  const onTrackCount = articles.filter(a=>a.onTrack).length;
+  const nearest = [...articles].filter(a=>a.daysToGoal).sort((a,b)=>a.daysToGoal-b.daysToGoal)[0];
+  const paidCount = articles.filter(a=>a.payout&&a.payout!=='--').length;
+  document.getElementById('kpis').innerHTML = [
+    {n:articles.length, l:'Articles in window', cls:''},
+    {n:onTrackCount,    l:'On track for $100',  cls:onTrackCount>0?'hi':''},
+    {n: nearest ? nearest.daysToGoal+'d' : '—', l:'Nearest to 500', cls:nearest?.onTrack?'hi':'warn'},
+    {n: paidCount>0?'$'+(paidCount*100):'$0', l:'Bonus paid this window', cls:paidCount>0?'hi':''},
+  ].map(k=>`<div class="kpi ${k.cls}"><div class="kpi-n">${k.n}</div><div class="kpi-l">${k.l}</div></div>`).join('');
+
+  // Chart
+  const latestEnd = articles.reduce((m,a)=>(!m||a.windowEnd>m)?a.windowEnd:m,'');
+  const allDates = [];
+  for(let d=snapDates[0]; d<=latestEnd; d=addDays(d,1)) allDates.push(d);
+
+  const datasets = [];
+  // Goal line
+  datasets.push({label:'500 goal', data:allDates.map(()=>GOAL),
+    borderColor:'rgba(34,216,122,0.35)', borderDash:[5,5], borderWidth:1.5,
+    pointRadius:0, fill:false, tension:0, order:99});
+
+  articles.forEach(art => {
+    // Actual
+    datasets.push({
+      label: art.title.split(' ').slice(0,5).join(' ')+'…',
+      data: allDates.map(d => art.actuals[d]??null),
+      borderColor:art.color, backgroundColor:art.color+'18',
+      borderWidth:2.5,
+      pointRadius:allDates.map(d=>art.actuals[d]!==undefined?3:0),
+      pointBackgroundColor:art.color,
+      fill:false, tension:0.35, spanGaps:false, order:1
+    });
+    // Projection
+    if(art.rate>0.3 && art.needed>0){
+      const endDate = art.projDate && art.daysToGoal<=art.daysLeft ? art.projDate : art.windowEnd;
+      datasets.push({
+        label:'_'+art.title.slice(0,8),
+        data:allDates.map(d=>{
+          if(d<TODAY||d>endDate) return null;
+          return Math.round(art.current+art.rate*daysBetween(TODAY,d));
+        }),
+        borderColor:art.color+'65', borderDash:[4,4], borderWidth:1.5,
+        pointRadius:0, fill:false, tension:0.2, order:2
+      });
+    }
+  });
+
+  new Chart(document.getElementById('chart'),{
+    type:'line',
+    data:{labels:allDates.map(fmtDate), datasets},
+    options:{
+      responsive:true, maintainAspectRatio:false, animation:{duration:600},
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          filter:item=>!item.dataset.label.startsWith('_'),
+          callbacks:{
+            title:items=>allDates[items[0].dataIndex],
+            label:item=>{
+              if(item.raw===null) return null;
+              if(item.dataset.label==='500 goal') return ' goal: 500';
+              return ` ${item.dataset.label.slice(0,35)}: ${item.raw}`;
+            }
+          }
+        }
+      },
+      scales:{
+        x:{ticks:{color:'#5a6080',font:{size:10,family:"'DM Mono',monospace"},maxRotation:0,autoSkip:true,maxTicksLimit:10},
+           grid:{color:'#1e2235'}},
+        y:{min:0,ticks:{color:'#5a6080',font:{size:10,family:"'DM Mono',monospace"},stepSize:100},
+           grid:{color:'#1e2235'},border:{display:false}}
+      }
+    }
+  });
+
+  // Goal line plugin
+  Chart.register({id:'goalLine',afterDraw(c){
+    const {ctx,chartArea:{left,right,top,bottom},scales:{y}}=c;
+    if(!y) return;
+    const yp=y.getPixelForValue(GOAL);
+    if(yp<top||yp>bottom) return;
+    ctx.save();
+    ctx.beginPath(); ctx.moveTo(left,yp); ctx.lineTo(right,yp);
+    ctx.strokeStyle='rgba(34,216,122,0.5)'; ctx.setLineDash([4,4]); ctx.lineWidth=1.5; ctx.stroke();
+    ctx.font='10px "DM Mono",monospace'; ctx.fillStyle='#22d87a'; ctx.textAlign='right';
+    ctx.fillText('500 goal',right-4,yp-5); ctx.restore();
+  }});
+
+  // Legend
+  document.getElementById('legend').innerHTML = articles.map(a=>
+    `<span class="legend-item"><span class="leg-dot" style="background:${a.color}"></span>${a.title.split(' ').slice(0,4).join(' ')}…</span>`
+  ).join('') + `<span class="legend-item"><span class="leg-dot" style="background:rgba(34,216,122,.35);border-radius:0;height:2px;width:16px"></span>500 goal</span>`;
+
+  // Cards
+  document.getElementById('cards').innerHTML = [...articles].sort((a,b)=>b.current-a.current).map(art=>{
+    const pct = Math.min(100,(art.current/GOAL)*100);
+    const pairs = Object.entries(art.actuals).sort();
+    const d1 = pairs.length>1 ? pairs[pairs.length-1][1]-pairs[pairs.length-2][1] : null;
+    const deltaStr = d1===null?'':d1>0?`<span style="color:var(--green)">+${d1} yesterday</span>`:d1<0?`<span style="color:#e05a5a">${d1} yesterday</span>`:`<span style="color:var(--muted)">no change</span>`;
+
+    let pbox='';
+    if(art.payout&&art.payout!=='--'){
+      pbox=`<div class="pbox done">Bonus earned · ${art.payout} payout confirmed ✓</div>`;
+    } else if(art.onTrack){
+      pbox=`<div class="pbox green">At <strong>+${art.rate.toFixed(1)}/day</strong> → hits 500 around <strong>${fmtDate(art.projDate)}</strong> · $100 bonus on track 🎯</div>`;
+    } else if(art.daysToGoal){
+      pbox=`<div class="pbox warn">At +${art.rate.toFixed(1)}/day → needs ${art.daysToGoal}d but only <strong>${art.daysLeft}d left</strong> · est. ${art.projAtEnd} at window end</div>`;
+    } else {
+      pbox=`<div class="pbox blue">Flat · ${art.daysLeft}d left in window · est. ${art.projAtEnd??art.current} at end</div>`;
+    }
+
+    return `<div class="acard ${art.payout&&art.payout!=='--'?'done':''}" style="border-left-color:${art.color}">
+      <div class="acard-head">
+        <div class="acard-title">${art.title.length>72?art.title.slice(0,69)+'…':art.title}</div>
+        <div><div class="ev-n" style="color:${art.color}">${art.current}</div><div class="ev-s">30D views</div></div>
+      </div>
+      <div class="track">
+        <div class="fill" style="width:${pct}%;background:${art.color}"></div>
+        <div class="goal-mark"></div>
+      </div>
+      <div class="detail">
+        <span>${art.published} · ${art.daysLeft}d left</span>
+        <span>${deltaStr}</span>
+      </div>
+      ${pbox}
+    </div>`;
+  }).join('');
+}
+
+// Load data from companion file (published alongside this artifact)
+fetch('./analytics-data.json')
+  .then(r=>{ if(!r.ok) throw new Error(r.status); return r.json(); })
+  .then(render)
+  .catch(err=>{
+    document.getElementById('loading').textContent = 'Could not load analytics-data.json · ' + err.message;
+  });
+</script>
+
+</body></html>
